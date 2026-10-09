@@ -102,7 +102,7 @@ def test_backend():
                 value = '2000-01-02' if 'birth' in turn['field'] or 'date' in turn['field'] else 'Synthetic Ada'
                 supplied.append(value)
                 turn = post(complete_prefix + '/messages', json={'answer': value})
-            assert turn['status'] == 'completed' and not turn['missing_fields']
+            assert turn['status'] == 'completed' and not turn['missing_fields'], turn
             filled = PdfReader(io.BytesIO(client.post(ORIGIN + turn['export_url']).content)).get_fields()
             assert {str(f.get('/V')) for f in filled.values() if f.get('/V')} == set(supplied)
             assert not filled['provider_signature'].get('/V')

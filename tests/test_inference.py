@@ -72,9 +72,9 @@ class InferenceTests(unittest.TestCase):
 
     def test_typed_mapping_and_question(self):
         with self.assertRaises(ValidationError):
-            inf.ProposedField(name="patient_name", label="Name", required="yes", box_id="a")
+            inf.ProposedField(name="patient_name", label="Name", required="yes", target_id="a")
         with self.assertRaises(ValidationError):
-            inf.Target(box_id="a", widget_id="b")
+            inf.Target(target_id="")
         for text in ["Name", "Name? Birth date?", "Name? Extra text"]:
             with self.assertRaises(ValidationError):
                 inf.Question(question=text)
@@ -88,7 +88,7 @@ class InferenceTests(unittest.TestCase):
 
     def test_unknown_source_rejected(self):
         with self.assertRaises(inf.InferenceError):
-            inf._target({"box_id": "invented"}, [{"box_id": "known"}])
+            inf._target({"target_id": "invented"}, [{"id": "known"}])
 
     def test_remote_endpoint_rejected(self):
         with patch.dict(inf.os.environ, {"PAPELLESS_LLAMA_URL": "http://example.com"}):
@@ -98,15 +98,15 @@ class InferenceTests(unittest.TestCase):
 
     def test_zero_based_fact_page(self):
         fact = inf.Fact(name="patient_name", value="SYNTHETIC", document_id="doc-a",
-                        page=0, confidence=1.0, box_id="box-a")
+                        page=0, confidence=1.0, target_id="box-a")
         self.assertEqual(fact.page, 0)
         with self.assertRaises(ValidationError):
             inf.Fact(name="patient_name", value="SYNTHETIC", document_id="doc-a",
-                     page=-1, confidence=1.0, box_id="box-a")
+                     page=-1, confidence=1.0, target_id="box-a")
 
     def test_widget_overlap_excluded_and_best_rank_highest(self):
         widget = {"id": "widget-a", "page": 0, "rect": [0, 0, 20, 20],
-                  "type": "text", "options": [], "protected": False}
+                  "type": "text", "options": [], "protected": False, "flags": 2}
         box = {"id": "box-a", "rect": [0, 0, 10, 10], "source": "layout",
                "text": "Name", "protected": False}
         structure = {"document_id": "doc-a", "document_kind": "acroform",
@@ -115,13 +115,14 @@ class InferenceTests(unittest.TestCase):
         self.assertEqual(len(inf._sources(structure, writable=True)), 1)
         proposals = inf.Proposals(candidates=[
             inf.Candidate(rank=rank, fields=[
-                inf.ProposedField(name="patient_name", label="Name", required=True,
-                                  widget_id="widget-a")]) for rank in (1, 2)])
+                inf.ProposedField(name="patient_name", label="Name", required=False,
+                                  target_id="widget-a")]) for rank in (1, 2)])
         with patch.object(inf, "_tokens", return_value=10), patch.object(
                 inf, "_json_call", return_value=proposals):
             candidates = inf.map_form(structure, "")
         self.assertGreater(candidates[0]["rank"], candidates[1]["rank"])
         self.assertEqual(candidates[0]["fields"][0]["page"], 0)
+        self.assertTrue(candidates[0]["fields"][0]["required"])
 
 
 if __name__ == "__main__":

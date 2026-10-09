@@ -130,14 +130,7 @@ class LookupArgs(StrictModel):
 
 
 class Target(StrictModel):
-    box_id: str | None = None
-    widget_id: str | None = None
-
-    @model_validator(mode="after")
-    def one_target(self):
-        if bool(self.box_id) == bool(self.widget_id):
-            raise ValueError("Exactly one source target is required")
-        return self
+    target_id: str = Field(min_length=1, max_length=128)
 
 
 class ProposedField(Target):
@@ -182,11 +175,17 @@ def _schema_instruction(instruction, model):
 
 
 def _json_call(instruction, data, skill, model, reserve=2048):
-    instruction = _schema_instruction(instruction, model)
+    schema = model.model_json_schema()
+    if isinstance(data, dict) and data.get("sources"):
+        for definition in [schema, *schema.get("$defs", {}).values()]:
+            if "target_id" in definition.get("properties", {}):
+                definition["properties"]["target_id"] = {
+                    "type": "string", "enum": [source["id"] for source in data["sources"]]}
+    instruction += "\nReturn JSON matching this schema:\n" + _dump(schema)
     messages = [{"role": "system", "content": SYSTEM + "\n" + skill + "\n" + instruction},
                 {"role": "user", "content": _data(data)}]
     for attempt in range(2):
-        message = _complete(messages, reserve=reserve, schema=model.model_json_schema())
+        message = _complete(messages, reserve=reserve, schema=schema)
         try:
             return model.model_validate_json(message["content"])
         except (ValidationError, ValueError, KeyError, TypeError):
@@ -199,7 +198,7 @@ def _sources(structure, writable=False):
     sources = []
     for widget in structure.get("widgets", []):
         if not writable or not widget.get("protected"):
-            sources.append({**widget, "widget_id": widget["id"]})
+            sources.append(dict(widget))
     for page in structure["pages"]:
         for box in page["boxes"]:
             if writable and (box.get("source") != "layout" or box.get("protected")):
@@ -210,7 +209,7 @@ def _sources(structure, writable=False):
                     and min(box["rect"][3], widget["rect"][3]) > max(box["rect"][1], widget["rect"][1])
                     for widget in structure.get("widgets", [])):
                 continue
-            sources.append({**box, "page": page["page"], "box_id": box["id"]})
+            sources.append({**box, "page": page["page"]})
     return sources
 
 
@@ -237,8 +236,7 @@ def _batches(structure, skill, instruction, sources, size, model):
 
 
 def _target(proposal, sources):
-    key = "widget_id" if proposal.get("widget_id") else "box_id"
-    target = next((item for item in sources if item.get(key) == proposal.get(key)), None)
+    target = next((item for item in sources if item["id"] == proposal.get("target_id")), None)
     if target is None:
         raise InferenceError("Local model invented an unknown source target")
     return target
@@ -258,7 +256,7 @@ def map_form(structure, skill):
     instruction = (
         "Map all patient-answerable writable sources in this excerpt. Return ranked candidates "
         "(rank 1 best, at most 3), each with fields: name (stable semantic snake_case), label, "
-        "required (boolean), and exactly one existing box_id or widget_id. Do not include "
+        "required (boolean), and target_id copied from an existing source id. Do not include "
         "rectangles or types: the backend copies those from the source. Use names such as "
         "member_last_name, member_first_name, patient_date_of_birth, philhealth_number, "
         "patient_sex consistently across documents. Never map protected fields. "
@@ -279,9 +277,13 @@ def map_form(structure, skill):
                     source = _target(field, excerpt["sources"])
                     if source.get("protected"):
                         raise InferenceError("Local model mapped a protected field")
+                    field.pop("target_id")
+                    field["widget_id" if "field_name" in source else "box_id"] = source["id"]
                     field.update(page=source["page"], rect=source["rect"],
                                  type=source.get("type", "text"),
                                  options=source.get("options", []), protected=False)
+                    if "flags" in source:
+                        field["required"] = bool(source["flags"] & 2)
                     fields.append(field)
                 candidates.append(fields)
             groups.append(candidates)
@@ -303,7 +305,7 @@ def extract_facts(structure, skill):
     instruction = (
         "Extract only explicit identity, relationship, date and numeric facts. Return facts "
         "with stable semantic snake_case name, exact literal value, document_id, page, "
-        "exactly one existing box_id or widget_id, and confidence between 0 and 1. "
+        "target_id copied from an existing source id, and confidence between 0 and 1. "
         "Do not treat empty form labels, instructions or placeholders as patient facts. "
         "Never infer values or normalize spelling. Use semantic names consistently: "
         "member_last_name, member_first_name, patient_date_of_birth, philhealth_number, "
@@ -321,6 +323,8 @@ def extract_facts(structure, skill):
                 if (fact["document_id"] != structure["document_id"]
                         or fact["page"] != source["page"] or fact["value"] not in evidence):
                     raise InferenceError("Local model fact is not grounded in its source")
+                fact.pop("target_id")
+                fact["widget_id" if "field_name" in source else "box_id"] = source["id"]
                 fact["confidence"] = float(source.get("confidence", 1))
                 facts.append(fact)
         return facts

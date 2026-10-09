@@ -83,8 +83,8 @@ There are at most three executed tool rounds and one argument/parsing retry.
 
 Also run `python -m unittest tests.test_inference` and exercise `map_form`,
 `ask_question` and `extract_facts` against extracted fixture structures. Direct
-operations use schema-constrained JSON; mappings derive geometry/options from
-actual source targets, not model-generated coordinates. PDF validation remains
+operations use schema-constrained JSON with `target_id` restricted to actual source
+IDs. The backend derives widget/box identity, geometry, options, and AcroForm required flags from the inspected source, not model-generated coordinates or requirements. PDF validation remains
 the final export gate. All page/provenance numbers are zero-based. Public candidate
 ranks use highest numeric rank as best. Layout regions overlapping widgets are
 excluded from proposals. Record actual-model latency and memory measurements after
