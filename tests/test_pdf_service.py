@@ -1,4 +1,4 @@
-"""Run with python -m unittest test_pdf_service after provisioning PDF dependencies."""
+"""Run with python -m unittest tests.test_pdf_service after provisioning PDF dependencies."""
 import hashlib
 import tempfile
 import unittest
@@ -6,7 +6,7 @@ from pathlib import Path
 
 from reportlab.pdfgen.canvas import Canvas
 
-from pdf_service import export_pdf, inspect_document, validate_mapping
+from backend.pdf_service import export_pdf, inspect_document, validate_mapping
 
 
 def field_for(target, widget=False):
@@ -39,8 +39,10 @@ class PdfBehavior(unittest.TestCase):
                               and not target["protected"] and target["rect"][1] >= 100)
                 field = field_for(target, widget)
                 bad = {"rank": 10, "fields": [{**field, "rect": [0, 0, 100, 20]}]}
-                mapping = validate_mapping(structure, [bad, {"rank": 1, "fields": [field]}])
+                mapping = validate_mapping(structure, [{"rank": 20, "fields": []}, bad, {"rank": 1, "fields": [field]}])
                 self.assertEqual(mapping["rank"], 1)
+                with self.assertRaises(ValueError):
+                    validate_mapping(structure, [{"rank": 20, "fields": []}])
                 if widget:
                     export_pdf(source, output, structure, mapping, {})
                     blank = inspect_document(output, "blank")
@@ -54,9 +56,10 @@ class PdfBehavior(unittest.TestCase):
                 else:
                     self.assertIn("ALPHA", after["pages"][0]["text"])
                 protected = next(target for target in targets if target.get("protected") and target.get("type") == "text")
-                locked_mapping = validate_mapping(structure, [{"rank": 1, "fields": [field_for(protected, widget)]}])
+                locked = {**field_for(protected, widget), "name": "signature"}
+                locked_mapping = validate_mapping(structure, [{"rank": 1, "fields": [field, locked]}])
                 with self.assertRaises(ValueError):
-                    export_pdf(source, output, structure, locked_mapping, {"member_name": "FORBIDDEN"})
+                    export_pdf(source, output, structure, locked_mapping, {"signature": "FORBIDDEN"})
                 with self.assertRaises(ValueError):
                     export_pdf(source, source, structure, mapping, {"member_name": "ALPHA"})
 

@@ -61,7 +61,7 @@ def _inherited(widget):
     return properties
 
 
-def _widgets(reader):
+def _widget_entries(reader):
     result = []
     for number, page in enumerate(reader.pages):
         for index, ref in enumerate(page.get("/Annots", [])):
@@ -78,11 +78,21 @@ def _widgets(reader):
                 raise ValueError("Unsupported or unnamed form widget")
             options = []
             if kind == "/Ch":
-                options = [str(item[0] if isinstance(item, list) else item) for item in data.get("/Opt", [])]
-            elif kind == "/Btn":
-                appearance = widget.get("/AP", {}).get("/N")
-                if appearance:
-                    options = [str(key).removeprefix("/") for key in appearance.get_object()]
+                raw_options = data.get("/Opt", [])
+                raw_options = raw_options.get_object() if hasattr(raw_options, "get_object") else raw_options
+                options = [str(item[0] if isinstance(item, list) else item) for item in raw_options]
+                if flags & 2097152:
+                    raise ValueError("Multiselect widgets are unsupported")
+            elif kind == "/Btn" and field_type != "button":
+                children = data.get("/Kids", [widget]) if field_type == "radio" else [widget]
+                for child in children:
+                    child = child.get_object()
+                    appearance = child.get("/AP")
+                    if appearance:
+                        normal = appearance.get_object().get("/N")
+                        if normal:
+                            options.extend(str(key).removeprefix("/") for key in normal.get_object())
+                options = list(dict.fromkeys(options))
             result.append({"id": f"p{number}-w{index}", "field_name": data["/T"], "page": number,
                            "rect": [float(v) for v in widget["/Rect"]], "type": field_type,
                            "options": options, "value": str(data.get("/V", "")).removeprefix("/"),
@@ -90,6 +100,15 @@ def _widgets(reader):
                            "protected": bool(flags & 1 or field_type in {"signature", "button"}
                                              or _PROTECTED.search(data["/T"]))})
     return result
+
+
+def _widgets(reader):
+    try:
+        return _widget_entries(reader)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("Malformed or unsupported form widgets") from exc
 
 
 def _native_page(page, number):
@@ -248,8 +267,32 @@ def _protected_regions(page, kind):
     return regions
 
 
+def _cell_intervals(edges):
+    clean = []
+    for edge in edges:
+        if not clean or edge - clean[-1] > 1.5:
+            clean.append(edge)
+    intervals, index = [], 0
+    while index < len(clean) - 1:
+        end = index + 1
+        width = clean[end] - clean[index]
+        if width <= 20:
+            while end < len(clean) - 1 and abs(clean[end + 1] - clean[end] - width) <= max(1, width * 0.15):
+                end += 1
+        if end - index < 3:
+            end = index + 1
+        intervals.append((clean[index], clean[end]))
+        index = end
+    return intervals
+
+
 def _layout_boxes(page, segments):
     horizontal, vertical = [], []
+    segments = list(segments)
+    for box in page["boxes"]:
+        if len(box["text"].strip()) >= 4 and not box["text"].strip("_ \r\n"):
+            x0, y0, x1, y1 = box["rect"]
+            segments.append((x0, y1, x1, y1))
     for x0, y0, x1, y1 in segments:
         if abs(y1 - y0) < 0.6 and abs(x1 - x0) >= 5:
             line = (min(x0, x1), (y0 + y1) / 2, max(x0, x1))
@@ -261,10 +304,15 @@ def _layout_boxes(page, segments):
     for left, bottom, right in sorted(horizontal, key=lambda line: (line[1], line[0])):
         edges = sorted({round(x, 1) for x, low, high in vertical
                         if left - 1 <= x <= right + 1 and low <= bottom + 1 and high >= bottom + 6})
-        intervals = list(zip(edges, edges[1:])) if len(edges) >= 2 else [(left, right)]
+        intervals = _cell_intervals(edges) if len(edges) >= 2 else [(left, right)]
         for x0, x1 in intervals:
             tops = [y for start, y, end in horizontal if 6 <= y - bottom <= 35 and start <= x0 + 1 and end >= x1 - 1]
-            top = min(tops) if tops else bottom + 13
+            boundaries = tops or [box["rect"][1] for box in page["boxes"]
+                                  if box["text"].strip("_ .") and 8 <= box["rect"][1] - bottom <= 35
+                                  and box["rect"][0] < x1 and box["rect"][2] > x0]
+            if not boundaries:
+                continue
+            top = min(boundaries)
             rect = [x0 + 1, bottom + 1, x1 - 1, top - 1]
             try:
                 _valid_rect(rect, page)
@@ -274,10 +322,11 @@ def _layout_boxes(page, segments):
                 continue
             if any(_intersects(rect, box["rect"]) for box in boxes):
                 continue
-            labels = sorted(page["boxes"], key=lambda box: abs(box["rect"][1] - bottom) + abs(box["rect"][0] - x0) / 4)
+            labels = sorted((box for box in page["boxes"] if box["text"].strip("_ .")),
+                            key=lambda box: abs(box["rect"][1] - bottom) + abs(box["rect"][0] - x0) / 4)
             label = labels[0] if labels else {"text": "", "confidence": 100.0}
-            is_check = tops and 5 <= x1 - x0 <= 16 and 5 <= top - bottom <= 16
-            if not is_check and x1 - x0 < 10:
+            is_check = bool(tops) and len(edges) <= 3 and 5 <= x1 - x0 <= 10.5 and 5 <= top - bottom <= 10.5
+            if not is_check and x1 - x0 < 7:
                 continue
             boxes.append({"id": f"p{page['page']}-b{len(boxes)}", "text": label["text"],
                           "rect": rect, "confidence": label["confidence"], "source": "layout",
@@ -367,6 +416,8 @@ def _mapping_candidate(structure, candidate):
         if key == "box_id" and any(widget["page"] == field["page"] and _intersects(widget["rect"], field["rect"]) for widget in structure["widgets"]):
             raise ValueError("Overlay mapping overlaps a form widget")
         fields.append(dict(field))
+    if not any(not field["protected"] and field["type"] in {"text", "checkbox", "radio", "choice"} for field in fields):
+        raise ValueError("Mapping contains no patient-editable fields")
     return {"rank": candidate["rank"], "fields": fields}
 
 
