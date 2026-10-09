@@ -215,3 +215,117 @@ def _valid_rect(rect, page):
     x0, y0, x1, y1 = rect
     if not (0 <= x0 < x1 <= page["width"] and 0 <= y0 < y1 <= page["height"]):
         raise ValueError("Mapping geometry exceeds page bounds")
+
+
+def _label_lines(boxes):
+    lines = []
+    for box in sorted(boxes, key=lambda item: (-item["rect"][1], item["rect"][0])):
+        if lines and abs(lines[-1]["rect"][1] - box["rect"][1]) < 3:
+            line = lines[-1]
+            line["text"] += " " + box["text"]
+            line["rect"] = [min(line["rect"][0], box["rect"][0]), min(line["rect"][1], box["rect"][1]),
+                            max(line["rect"][2], box["rect"][2]), max(line["rect"][3], box["rect"][3])]
+        else:
+            lines.append({"text": box["text"], "rect": list(box["rect"])})
+    return lines
+
+
+def _protected_regions(page, kind):
+    width, height = page["width"], page["height"]
+    if kind == "annex_b":
+        return [[0, 0, width, height]]
+    regions = []
+    for label in _label_lines(page["boxes"]):
+        text, rect = label["text"], label["rect"]
+        if kind == "cf1" and re.search(r"PART\s*III", text, re.I):
+            regions.append([0, 0, width, min(height, rect[3] + 3)])
+        if re.search(r"(?:for\s+)?philhealth\s+use\s+only", text, re.I):
+            regions.append([max(0, rect[0] - 5) if rect[0] > width / 2 else 0,
+                            0, width, min(height, rect[3] + 3)])
+        if _PROTECTED.search(text):
+            regions.append([max(0, rect[0] - 4), max(0, rect[1] - 5),
+                            min(width, rect[2] + 4), min(height, rect[3] + 26)])
+    return regions
+
+
+def _layout_boxes(page, segments):
+    horizontal, vertical = [], []
+    for x0, y0, x1, y1 in segments:
+        if abs(y1 - y0) < 0.6 and abs(x1 - x0) >= 5:
+            line = (min(x0, x1), (y0 + y1) / 2, max(x0, x1))
+            if not any(abs(old[1] - line[1]) < 1.5 and abs(old[0] - line[0]) < 2 and abs(old[2] - line[2]) < 2 for old in horizontal):
+                horizontal.append(line)
+        elif abs(x1 - x0) < 0.6 and abs(y1 - y0) >= 5:
+            vertical.append(((x0 + x1) / 2, min(y0, y1), max(y0, y1)))
+    boxes = []
+    for left, bottom, right in sorted(horizontal, key=lambda line: (line[1], line[0])):
+        edges = sorted({round(x, 1) for x, low, high in vertical
+                        if left - 1 <= x <= right + 1 and low <= bottom + 1 and high >= bottom + 6})
+        intervals = list(zip(edges, edges[1:])) if len(edges) >= 2 else [(left, right)]
+        for x0, x1 in intervals:
+            tops = [y for start, y, end in horizontal if 6 <= y - bottom <= 35 and start <= x0 + 1 and end >= x1 - 1]
+            top = min(tops) if tops else bottom + 13
+            rect = [x0 + 1, bottom + 1, x1 - 1, top - 1]
+            try:
+                _valid_rect(rect, page)
+            except ValueError:
+                continue
+            if any(_intersects(rect, box["rect"]) for box in page["boxes"] if box["text"].strip("_ .")):
+                continue
+            if any(_intersects(rect, box["rect"]) for box in boxes):
+                continue
+            labels = sorted(page["boxes"], key=lambda box: abs(box["rect"][1] - bottom) + abs(box["rect"][0] - x0) / 4)
+            label = labels[0] if labels else {"text": "", "confidence": 100.0}
+            is_check = tops and 5 <= x1 - x0 <= 16 and 5 <= top - bottom <= 16
+            if not is_check and x1 - x0 < 10:
+                continue
+            boxes.append({"id": f"p{page['page']}-b{len(boxes)}", "text": label["text"],
+                          "rect": rect, "confidence": label["confidence"], "source": "layout",
+                          "type": "checkbox" if is_check else "text", "options": ["Off", "Yes"] if is_check else [],
+                          "protected": any(_intersects(rect, region) for region in page["protected_regions"])})
+    return boxes
+
+
+def inspect_document(path: Path, document_id: str) -> dict:
+    reader = _reader(path)
+    pages, segments_by_page = [], []
+    try:
+        with _PDFIUM_LOCK, pdfium.PdfDocument(str(path)) as document:
+            if len(document) != len(reader.pages):
+                raise ValueError("Inconsistent PDF page tree")
+            for number in range(len(document)):
+                page = document[number]
+                try:
+                    text, boxes = _native_page(page, number)
+                    if text.strip():
+                        segments = _vector_lines(reader.pages[number])
+                    else:
+                        text, boxes, segments = _ocr_page(page, number)
+                    width, height = page.get_size()
+                    pages.append({"page": number, "width": width, "height": height, "text": text, "boxes": boxes})
+                    segments_by_page.append(segments)
+                finally:
+                    page.close()
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("PDF extraction failed") from exc
+    widgets = _widgets(reader)
+    text = " ".join(page["text"] for page in pages)
+    if re.search(r"PROVIDER\s+DATA\s+RECORD|PDR[-\s]*HF", text, re.I):
+        kind = "annex_b"
+    elif re.search(r"PHILHEALTH\s+MEMBER\s+REGISTRATION\s+FORM|PMRF", text, re.I):
+        kind = "pmrf"
+    elif re.search(r"CF\s*[-–]?\s*1\b|CLAIM\s+FORM\s+1", text, re.I):
+        kind = "cf1"
+    else:
+        kind = "acroform" if widgets else "fixed_layout"
+    for page, segments in zip(pages, segments_by_page):
+        page["protected_regions"] = _protected_regions(page, kind)
+        page["boxes"].extend(_layout_boxes(page, segments))
+    for widget in widgets:
+        page = pages[widget["page"]]
+        _valid_rect(widget["rect"], page)
+        widget["protected"] |= any(_intersects(widget["rect"], region) for region in page["protected_regions"])
+    return {"document_id": document_id, "document_kind": kind, "page_count": len(pages),
+            "pages": pages, "widgets": widgets, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
