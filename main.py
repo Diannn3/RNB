@@ -218,3 +218,139 @@ def export(draft_id: str, session: SessionDep):
     record = draft_record(session, draft_id)
     return FileResponse(db.artifact_path(record), media_type='application/pdf',
                         filename=f'{draft_id}-DRAFT.pdf')
+
+
+class MessageInput(Input):
+    document_id: str | None = None
+    answer: str | None = None
+    skip: bool = False
+    finalize: bool = False
+
+
+@app.post('/api/v1/workspaces/{workspace_id}/messages')
+def messages(workspace_id: str, body: MessageInput, session: SessionDep):
+    db.resource(session, db.WorkspaceRecord, workspace_id)
+    with lock, operation(session, workspace_id, 'message') as request:
+        current = state(workspace_id)
+        document_id = body.document_id or current['active']
+        if not document_id:
+            raise ValueError('document_id_required')
+        if current['pending'] and current['active'] != document_id:
+            raise ValueError('answer_pending_for_another_document')
+        structure, mapping = mapping_for(session, workspace_id, document_id, request)
+        current['active'] = document_id
+        values = current['values'].setdefault(document_id, {})
+        pending = current['pending']
+        if body.answer is not None and (body.skip or body.finalize):
+            raise ValueError('answer_and_skip_or_finalize')
+        if body.answer is not None and pending is None:
+            raise ValueError('no_pending_question')
+        if pending and (body.answer is not None or body.skip or body.finalize):
+            name = pending['name']
+            if body.answer and body.answer.strip():
+                values[name] = body.answer
+                if pending['kind'] == 'conflict':
+                    current['conflicts'][name]['resolved'] = True
+                    current['conflicts'][name]['resolution'] = body.answer
+            else:
+                values.pop(name, None)
+            current.setdefault('answered', {}).setdefault(document_id, set()).add(name)
+            current['pending'] = None
+        if body.finalize:
+            result = create_draft(session, workspace_id, document_id, request, {})
+            result['assistant_message'] = 'The partial draft is ready. Unanswered or unresolved fields remain blank.'
+            return result
+        if current['pending']:
+            db.transition(session, request, 'needs_input')
+            return {'request_id': request.id, 'status': 'needs_input',
+                    **current['pending']['response']}
+        fields = {f['name']: f for f in mapping['fields'] if not f.get('protected')}
+        for name, conflict in current['conflicts'].items():
+            if name in fields and not conflict.get('resolved') and not conflict.get('asked'):
+                conflict['asked'] = True
+                label = fields[name]['label']
+                response = {'assistant_message': f'Which value should this draft use for {label}? You may skip to leave it blank.',
+                            'field': name, 'conflict': conflict}
+                current['pending'] = {'kind': 'conflict', 'name': name, 'response': response}
+                db.transition(session, request, 'needs_input')
+                return {'request_id': request.id, 'status': 'needs_input', **response}
+        answered = current.setdefault('answered', {}).setdefault(document_id, set())
+        unresolved = {n for n, c in current['conflicts'].items() if not c.get('resolved')}
+        for name, field in fields.items():
+            if field.get('required') and not values.get(name) and name not in answered | unresolved:
+                question = inference.ask_question(field, skill('medical-form-assistant'))
+                response = {'assistant_message': question, 'field': name}
+                current['pending'] = {'kind': 'field', 'name': name, 'response': response}
+                db.transition(session, request, 'needs_input')
+                return {'request_id': request.id, 'status': 'needs_input', **response}
+        result = create_draft(session, workspace_id, document_id, request, {})
+        result['assistant_message'] = 'The draft is ready. Unanswered or unresolved fields remain blank.'
+        return result
+
+
+def source_facts(structure):
+    proposed = inference.extract_facts(structure, skill('cross-document-checker'))
+    widgets = {w['id']: w for w in structure['widgets']}
+    boxes = {b['id']: (p['page'], b) for p in structure['pages'] for b in p['boxes']}
+    facts = []
+    for fact in proposed:
+        if fact.get('document_id') != structure['document_id']:
+            raise ValueError('invalid_fact_document')
+        if fact.get('widget_id') in widgets:
+            source = widgets[fact['widget_id']]
+            text, page = str(source.get('value') or ''), source['page']
+            confidence = None
+        elif fact.get('box_id') in boxes:
+            page, source = boxes[fact['box_id']]
+            text, confidence = source['text'], source.get('confidence')
+        else:
+            raise ValueError('invalid_fact_source')
+        if fact.get('page') != page or not fact.get('value') or str(fact['value']) not in text:
+            raise ValueError('unsupported_fact_value')
+        facts.append({**fact, 'confidence': confidence})
+    return facts
+
+
+@app.post('/api/v1/workspaces/{workspace_id}/compare')
+def compare(workspace_id: str, session: SessionDep):
+    db.resource(session, db.WorkspaceRecord, workspace_id)
+    with lock, operation(session, workspace_id, 'compare') as request:
+        db.transition(session, request, 'generating_proposals')
+        grouped = {}
+        for document in documents(workspace_id, session):
+            for fact in source_facts(get_structure(session, document.id)):
+                grouped.setdefault(fact['name'], []).append(fact)
+        current = state(workspace_id)
+        results = []
+        for name, facts in grouped.items():
+            outcome = 'insufficient_evidence'
+            if len({f['document_id'] for f in facts}) > 1:
+                outcome = 'conflict' if len({str(f['value']) for f in facts}) > 1 else 'agreement'
+            results.append({'name': name, 'outcome': outcome, 'sources': facts})
+            if outcome == 'conflict':
+                previous = current['conflicts'].get(name, {})
+                if previous.get('sources') != facts:
+                    current['conflicts'][name] = {'name': name, 'sources': facts,
+                                                  'asked': False, 'resolved': False}
+        db.transition(session, request, 'completed')
+        return {'request_id': request.id, 'status': 'completed', 'comparisons': results}
+
+
+class ExplanationInput(Input):
+    query: str = Field(min_length=1, max_length=500)
+
+
+@app.post('/api/v1/workspaces/{workspace_id}/explanations')
+def explanations(workspace_id: str, body: ExplanationInput, session: SessionDep):
+    db.resource(session, db.WorkspaceRecord, workspace_id)
+    with lock, operation(session, workspace_id, 'explanation') as request:
+        result = explain(body.query)
+        db.transition(session, request, 'completed')
+        return {'request_id': request.id, **result}
+
+
+@app.get('/api/v1/health')
+def health(session: SessionDep):
+    session.exec(select(db.WorkspaceRecord).limit(1)).all()
+    local = inference.health()
+    return {'api': 'ok', 'database': 'ok', 'inference': local}
