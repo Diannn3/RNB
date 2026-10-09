@@ -125,3 +125,116 @@ class WorkspaceArgs(StrictModel):
 
 class LookupArgs(StrictModel):
     query: str = Field(min_length=1, max_length=200)
+
+
+class Target(StrictModel):
+    box_id: str | None = None
+    widget_id: str | None = None
+
+    @model_validator(mode="after")
+    def one_target(self):
+        if bool(self.box_id) == bool(self.widget_id):
+            raise ValueError("Exactly one source target is required")
+        return self
+
+
+class ProposedField(Target):
+    name: str = Field(pattern=r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+    label: str = Field(min_length=1, max_length=200)
+    required: bool
+
+
+class Candidate(StrictModel):
+    rank: int = Field(ge=1, le=3)
+    fields: list[ProposedField] = Field(min_length=1, max_length=12)
+
+
+class Proposals(StrictModel):
+    candidates: list[Candidate] = Field(min_length=1, max_length=3)
+
+
+class Question(StrictModel):
+    question: str = Field(min_length=4, max_length=400)
+
+    @model_validator(mode="after")
+    def one_question(self):
+        if self.question.count("?") != 1 or not self.question.rstrip().endswith("?"):
+            raise ValueError("Exactly one natural-language question is required")
+        return self
+
+
+class Fact(Target):
+    name: str = Field(pattern=r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+    value: str = Field(min_length=1, max_length=1000)
+    document_id: str
+    page: int = Field(ge=1)
+    confidence: float = Field(ge=0, le=1)
+
+
+class Facts(StrictModel):
+    facts: list[Fact] = Field(max_length=20)
+
+
+def _json_call(instruction, data, skill, model, reserve=2048):
+    messages = [{"role": "system", "content": SYSTEM + "\n" + skill + "\n" + instruction},
+                {"role": "user", "content": _data(data)}]
+    for attempt in range(2):
+        message = _complete(messages, reserve=reserve, schema=model.model_json_schema())
+        try:
+            return model.model_validate_json(message["content"])
+        except (ValidationError, ValueError, KeyError, TypeError):
+            if attempt:
+                raise InferenceError("Local model returned invalid JSON or output types") from None
+            messages[0]["content"] += "\nRetry: return only JSON matching the required schema."
+
+
+def _sources(structure, writable=False):
+    sources = []
+    for widget in structure.get("widgets", []):
+        if not writable or not widget.get("protected"):
+            sources.append({**widget, "widget_id": widget["id"]})
+    for page in structure["pages"]:
+        for box in page["boxes"]:
+            if writable and (box.get("source") != "layout" or box.get("protected")):
+                continue
+            sources.append({**box, "page": page["page"], "box_id": box["id"]})
+    return sources
+
+
+def _batches(structure, skill, instruction, sources, size):
+    # Every source is considered; never truncate a whole document or silently skip pages.
+    offset = 0
+    metadata = {key: structure[key] for key in ("document_id", "document_kind", "page_count")}
+    metadata["pages"] = [{key: page[key] for key in ("page", "width", "height")}
+                         for page in structure["pages"]]
+    while offset < len(sources):
+        count = min(size, len(sources) - offset)
+        while True:
+            excerpt = {**metadata, "sources": sources[offset:offset + count]}
+            messages = [{"role": "system", "content": SYSTEM + "\n" + skill + "\n" + instruction},
+                        {"role": "user", "content": _data(excerpt)}]
+            if _tokens(messages) + 3072 + 256 <= CONTEXT:
+                break
+            if count == 1:
+                raise InferenceError("A source excerpt exceeds the inference context budget")
+            count = max(1, count // 2)
+        yield excerpt
+        offset += count
+
+
+def _target(proposal, sources):
+    key = "widget_id" if proposal.get("widget_id") else "box_id"
+    target = next((item for item in sources if item.get(key) == proposal.get(key)), None)
+    if target is None:
+        raise InferenceError("Local model invented an unknown source target")
+    return target
+
+
+def ask_question(field, skill):
+    if field.get("protected"):
+        raise InferenceError("Cannot ask for a protected field")
+    instruction = ("Return JSON with question: one concise English natural-language question "
+                   "about this single field, not several questions. Include allowed options "
+                   "if applicable. Ask only for synthetic patient-answerable data.")
+    with _LOCK:
+        return _json_call(instruction, field, skill, Question, reserve=256).question
