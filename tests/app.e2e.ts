@@ -42,7 +42,10 @@ test("showcase navigation and interactive demonstration", async ({ page }) => {
     page.getByRole("button", { name: "Reviewed by you", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Try the sample", exact: true }).click();
-  await expect(page).toHaveURL(/app\/sample$/);
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
   await expect(
     page
       .locator(".review-detail")
@@ -57,6 +60,10 @@ test("sample evidence, correction, approval and real PDF download", async ({
     if (["POST", "PUT", "PATCH"].includes(r.method())) requests.push(r.url());
   });
   await page.goto("/app/sample");
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
   await expect(
     page
       .locator(".review-detail")
@@ -100,8 +107,8 @@ test("sample evidence, correction, approval and real PDF download", async ({
     .click();
   await page.getByRole("button", { name: "Preferred contact Email" }).click();
   await page.getByRole("button", { name: "Approve this answer" }).click();
-  await page.getByRole("button", { name: "Prepare draft" }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Continue to export" }).click();
+  await expect(page).toHaveURL(/app\/export$/);
   await expect(
     page.getByRole("button", { name: "Download draft" }),
   ).toBeEnabled();
@@ -127,6 +134,10 @@ test("manual upload supports widget semantics and restores hash-checked projects
   await page
     .getByLabel("Upload a form PDF")
     .setInputFiles({ name: "manual.pdf", mimeType: "application/pdf", buffer });
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
   await expect(
     page
       .locator(".review-detail")
@@ -173,7 +184,7 @@ test("manual upload supports widget semantics and restores hash-checked projects
     page.getByText("Project restored. Document identities match."),
   ).toBeVisible();
   await expect(page.getByText("4 of 5 reviewed")).toBeVisible();
-  await page.getByRole("button", { name: "Prepare draft" }).click();
+  await page.getByRole("button", { name: "Continue to export" }).click();
   await page.getByRole("button", { name: "Prepare incomplete draft" }).click();
   const dl = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download draft" }).click();
@@ -194,6 +205,8 @@ test("plain PDF produces an answer sheet and refresh clears memory", async ({
     mimeType: "application/pdf",
     buffer: await fixture(false),
   });
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
   await expect(
     page.getByText("This PDF has no editable fields.", { exact: false }),
   ).toBeVisible();
@@ -208,15 +221,15 @@ test("plain PDF produces an answer sheet and refresh clears memory", async ({
     .fill("Alex Reyes. " + "Reviewed supporting detail. ".repeat(220));
   await page.getByRole("button", { name: "Save answer", exact: true }).click();
   await page.getByRole("button", { name: "Approve this answer" }).click();
-  await page.getByRole("button", { name: "Prepare draft" }).click();
+  await page.getByRole("button", { name: "Continue to export" }).click();
   await expect(
     page.getByRole("button", { name: "Download draft" }),
   ).toBeEnabled();
-  const preview = page.getByRole("dialog");
+  const preview = page.locator(".export-page");
   await preview.getByRole("button", { name: "Next page" }).click();
   await preview.getByRole("button", { name: "Next page" }).click();
   await expect(preview.getByText(/Page 3 of/)).toBeVisible();
-  await page.getByRole("button", { name: "Back to review" }).click();
+  await page.locator("#workspace-main").getByRole("button", { name: "Back to verification" }).click();
   page.on("dialog", (dialog) => dialog.accept());
   await page.reload();
   await expect(
@@ -259,6 +272,10 @@ test("key screens, reduced motion, keyboard focus and accessible structure", asy
       fullPage: false,
     });
   await page.goto("/app/sample");
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
   await expect(
     page
       .locator(".review-detail")
@@ -292,9 +309,9 @@ test("key screens, reduced motion, keyboard focus and accessible structure", asy
     });
   }
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.getByRole("tab", { name: "Document", exact: true }).click();
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
   await expect(page.locator(".react-pdf__Page__canvas")).toBeVisible();
-  await page.getByRole("tab", { name: "Review", exact: true }).click();
+  await page.getByRole("tab", { name: "Answers", exact: true }).click();
   await expect(page.getByLabel("Answer Required")).toBeVisible();
   await page.getByRole("button", { name: "Clear workspace" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();

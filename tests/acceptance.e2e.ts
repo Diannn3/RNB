@@ -5,28 +5,29 @@ test("mobile tabs and source reveal preserve keyboard focus", async ({
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/app/sample");
-  const review = page.getByRole("tab", { name: "Review", exact: true });
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
+  const review = page.getByRole("tab", { name: "Answers", exact: true });
   await expect(review).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".review-detail h2")).toHaveText("Full name");
   await review.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("tab", { name: "Questions" })).toBeFocused();
-  await expect(
-    page.getByRole("tabpanel", { name: "Questions", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Preview", exact: true })).toBeFocused();
   await page.keyboard.press("Home");
   await expect(
-    page.getByRole("tab", { name: "Document", exact: true }),
+    page.getByRole("tab", { name: "Preview", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await page
     .getByRole("button", { name: "Show in document", exact: true })
     .click();
   await expect(
-    page.getByRole("tabpanel", { name: "Document", exact: true }),
+    page.getByRole("tabpanel", { name: "Preview", exact: true }),
   ).toBeFocused();
   await expect(page.getByLabel("Active document")).toHaveValue("sample-record");
-  await page.getByRole("tab", { name: "Review", exact: true }).click();
+  await page.getByRole("tab", { name: "Answers", exact: true }).click();
   await page.getByRole("button", { name: "Choose a field" }).click();
   await page
     .getByRole("button", { name: "Email address Needs your answer" })
@@ -37,6 +38,10 @@ test("keyboard separator resize and citation geometry across zoom and rotation",
   page,
 }) => {
   await page.goto("/app/sample");
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
   await expect(page.locator(".review-detail h2")).toHaveText("Full name");
   const separator = page.getByRole("separator", {
     name: "Resize document and review panes",
@@ -85,6 +90,10 @@ test("unsaved edits invalidate review immediately and block stale export", async
   page,
 }) => {
   await page.goto("/app/sample");
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
   await expect(page.locator(".review-detail h2")).toHaveText("Full name");
   await page.getByRole("button", { name: "Approve this answer" }).click();
   await expect(page.getByText("1 of 4 reviewed")).toBeVisible();
@@ -93,7 +102,7 @@ test("unsaved edits invalidate review immediately and block stale export", async
   await expect(
     page.getByRole("button", { name: "Approve this answer" }),
   ).toBeDisabled();
-  await page.getByRole("button", { name: "Prepare draft" }).click();
+  await page.getByRole("button", { name: "Continue to export" }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(
     page.getByText("Save your changes before preparing a draft."),
@@ -121,6 +130,8 @@ test("manually added answers allow explicit required marking", async ({
       mimeType: "application/pdf",
       buffer: Buffer.from(await pdf.save()),
     });
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await page.getByRole("link", { name: "Verification", exact: true }).click();
   await page.getByRole("button", { name: "Add an answer" }).click();
   await page.getByLabel("Field name").fill("Applicant");
   await page.getByRole("button", { name: "Add answer", exact: true }).click();

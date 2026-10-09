@@ -46,8 +46,7 @@ createRoot(document.getElementById("root")!).render(
         >
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/app" element={<Workspace />} />
-            <Route path="/app/sample" element={<Workspace />} />
+            <Route path="/app/*" element={<Workspace />} />
             <Route
               path="*"
               element={

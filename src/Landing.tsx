@@ -12,6 +12,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Flip } from "gsap/Flip";
 import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
+import SignatureSequence from "./SignatureSequence";
 import { Brand, Evidence, PaperPreview } from "./components";
 gsap.registerPlugin(ScrollTrigger, Flip, SplitText, useGSAP);
 export default function Landing() {
@@ -44,35 +45,7 @@ export default function Landing() {
           duration: 1.25,
           ease: "expo.out",
         });
-        const desktop = gsap.matchMedia();
-        desktop.add("(min-width: 1024px)", () => {
-          gsap
-            .timeline({
-              scrollTrigger: {
-                trigger: ".signature",
-                start: "top top",
-                end: "+=950",
-                scrub: 1,
-                pin: ".signature-inner",
-              },
-            })
-            .to(".signature-paper", { xPercent: -9, rotate: -5, duration: 1 })
-            .fromTo(
-              ".signature-evidence",
-              { clipPath: "inset(0 100% 0 0)" },
-              { clipPath: "inset(0 0% 0 0)", duration: 1 },
-            )
-            .to(".signature-line", { strokeDashoffset: 0, duration: 1 })
-            .fromTo(
-              ".signature-approval",
-              { scale: 0.92 },
-              { scale: 1, duration: 0.5 },
-            );
-        });
-        return () => {
-          split.revert();
-          desktop.revert();
-        };
+        return () => split.revert();
       });
       return () => mm.revert();
     },
@@ -177,52 +150,7 @@ export default function Landing() {
             <span>Follow an answer</span>
           </a>
         </section>
-        <section className="signature" id="how-it-works">
-          <div className="signature-inner">
-            <div className="signature-copy">
-              <h2>
-                Every answer
-                <br />
-                has a story.
-              </h2>
-              <p>
-                Follow it back to the source.
-                <br />
-                See what fits. Decide what belongs.
-              </p>
-              <Link to="/app/sample" className="text-button">
-                Explore the sample <ArrowRight size={17} />
-              </Link>
-            </div>
-            <div className="signature-stage">
-              <div className="signature-paper">
-                <PaperPreview compact />
-              </div>
-              <svg
-                className="signature-connector"
-                viewBox="0 0 550 420"
-                aria-hidden="true"
-              >
-                <path
-                  className="signature-line"
-                  d="M90 220 H300 Q320 220 320 240 V290 H485"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeDasharray="600"
-                  strokeDashoffset="600"
-                />
-              </svg>
-              <div className="signature-evidence">
-                <Evidence quote="Full name: Alex Reyes" />
-                <div className="signature-approval">
-                  <Check size={18} />
-                  <span>Reviewed by you</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <SignatureSequence />
         <section className="interactive-section">
           <div className="section-heading">
             <h2>
