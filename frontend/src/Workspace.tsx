@@ -4,6 +4,7 @@ import { Brand, Modal } from "./components";
 import { api, apiBlob, resource, ApiError } from "./api";
 import type { Workspace, ApiDocument, Structure, Slot, Fact, Draft, Message, Comparison, Explanation, Health, RequestStatus } from "./api";
 import "./api-workspace.css";
+import { chatIntent, isFieldHelp } from "./chat-intent";
 const PdfViewer = lazy(() => import("./PdfViewer"));
 type LoadedDocument = { document: ApiDocument; name: string; structure: Structure; bytes: Uint8Array };
 type Answer = { label: string; value: string };
@@ -187,10 +188,10 @@ export default function SessionLayout() {
       await receiveDraft({ ...result, status: "completed", draft_id: result.draft_id, preview_url: result.preview_url, export_url: result.export_url, missing_fields: result.missing_fields ?? [] });
     }
   }
-  async function sendChat(text = answer.trim()) {
+  async function sendChat(text = answer.trim(), preserveInput = false) {
     if (!text) return;
-    const compare = /^(?:please\s+)?compare\b/i.test(text);
-    const explain = /^(?:(?:please\s+)?(?:(?:can|could) you\s+)?(?:explain|define)\b|what (?:is|are|does)\b|what's\b)/i.test(text);
+    const compare = chatIntent(text) === "compare";
+    const explain = chatIntent(text) === "explain";
     if (compare || explain) {
       if (compare && documents.length < 2) {
         setTranscript(previous => [...previous, { role: "You", text }, { role: "PapelLess", text: "Upload at least two PDFs, then ask me to compare their evidence." }]);
@@ -198,12 +199,15 @@ export default function SessionLayout() {
       }
       const result = compare
         ? await api<Comparison>(`${base}/compare`, post())
-        : await api<Explanation>(`${base}/explanations`, post({ query: text, ...(target ? { document_id: target } : {}) }));
+        : await api<Explanation>(`${base}/explanations`, post({ query: text,
+          ...(target ? { document_id: target } : {}),
+          ...(isFieldHelp(text) && pending?.field && !needsResume ? { field_id: pending.field } : {}) }));
       if (!alive.current) return;
       setTranscript(previous => [...previous, { role: "You", text }, compare
         ? { role: "PapelLess", text: "Here is the evidence across your documents.", comparison: result as Comparison }
         : { role: "PapelLess", text: (result as Explanation).assistant_message, explanation: result as Explanation }]);
-      setAnswer(""); await inspect(result.request_id); return;
+      if (!preserveInput) setAnswer("");
+      await inspect(result.request_id); return;
     }
     if (!pending || needsResume) {
       setTranscript(previous => [...previous, { role: "PapelLess", text: "Start or resume the form before sending an answer. You can still ask me to explain a service or compare documents." }]);
@@ -310,7 +314,7 @@ export default function SessionLayout() {
                 <div ref={conversationEnd} />
               </div>
               <div className="api-chat-footer">
-                <div className="api-suggestions"><button disabled={!!busy || !target} onClick={() => void run("Explaining the form…", () => sendChat("Explain this form"))}>Explain this form</button><button disabled={!!busy || documents.length < 2} onClick={() => void run("Comparing document evidence…", () => sendChat("Compare my documents"))}>Compare my documents</button></div>
+                <div className="api-suggestions"><button disabled={!!busy || !pending?.field || needsResume} onClick={() => void run("Explaining this field…", () => sendChat("Explain this field", true))}>Explain this field</button><button disabled={!!busy || !target} onClick={() => void run("Explaining the form…", () => sendChat("Explain this form", true))}>Explain this form</button><button disabled={!!busy || documents.length < 2} onClick={() => void run("Comparing document evidence…", () => sendChat("Compare my documents", true))}>Compare my documents</button></div>
                 <form className="api-composer" onSubmit={e => { e.preventDefault(); void run("Responding…", () => sendChat()); }}>
                   <label className="sr-only" htmlFor="form-answer">Message PapelLess</label><textarea id="form-answer" rows={2} placeholder={pending ? "Your answer, or ask me to explain…" : "Ask about your form…"} value={answer} onChange={e => setAnswer(e.target.value)} maxLength={4000} disabled={!!busy} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
                   <button className="api-send" aria-label="Send message" disabled={!!busy || !answer.trim()}><ArrowUp size={20} /></button>
