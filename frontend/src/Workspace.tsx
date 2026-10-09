@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Moon, Sun, Plus, Download } from "lucide-react";
+import { Moon, Sun, Plus, Download, ArrowUp } from "lucide-react";
 import { Brand, Modal } from "./components";
 import { api, apiBlob, resource, ApiError } from "./api";
 import type { Workspace, ApiDocument, Structure, Slot, Fact, Draft, Message, Comparison, Explanation, Health, RequestStatus } from "./api";
@@ -7,7 +7,7 @@ import "./api-workspace.css";
 const PdfViewer = lazy(() => import("./PdfViewer"));
 type LoadedDocument = { document: ApiDocument; name: string; structure: Structure; bytes: Uint8Array };
 type Answer = { label: string; value: string };
-type Transcript = { role: "You" | "PapelLess"; text: string };
+type Transcript = { role: "You" | "PapelLess"; text: string; explanation?: Explanation; comparison?: Comparison };
 const post = (body?: object): RequestInit => ({ method: "POST", ...(body ? { body: JSON.stringify(body) } : {}) });
 
 export default function SessionLayout() {
@@ -31,11 +31,8 @@ export default function SessionLayout() {
   const [confirmed, setConfirmed] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
-  const [tab, setTab] = useState<"Conversation" | "Review" | "Compare" | "Explain">("Conversation");
+  const [tab, setTab] = useState<"Conversation" | "Review">("Conversation");
   const [mobilePane, setMobilePane] = useState<"Work" | "Document">("Work");
-  const [comparisons, setComparisons] = useState<Comparison>();
-  const [query, setQuery] = useState("");
-  const [explanation, setExplanation] = useState<Explanation>();
   const [health, setHealth] = useState<Health>();
   const [request, setRequest] = useState<RequestStatus>();
   const [busy, setBusy] = useState("");
@@ -47,6 +44,7 @@ export default function SessionLayout() {
   const previewRef = useRef("");
   const downloadUrls = useRef<string[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
+  const conversationEnd = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const current = loaded[viewDoc];
   const targetAnswers = answers[target] ?? {};
@@ -55,6 +53,7 @@ export default function SessionLayout() {
   useEffect(() => { alive.current = true; return () => { alive.current = false; URL.revokeObjectURL(previewRef.current); downloadUrls.current.forEach(URL.revokeObjectURL); }; }, []);
   useEffect(() => { document.documentElement.dataset.workspaceTheme = dark ? "dark" : "light"; return () => { delete document.documentElement.dataset.workspaceTheme; }; }, [dark]);
   useEffect(() => { heading.current?.focus(); }, [tab]);
+  useEffect(() => { conversationEnd.current?.scrollIntoView({ block: "nearest" }); }, [transcript, busy]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (pending || Object.keys(answers).length) event.preventDefault(); };
     window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn);
@@ -85,7 +84,7 @@ export default function SessionLayout() {
   function reset(next: Workspace, docs: ApiDocument[]) {
     invalidateDraft(); setWorkspace(next); setResumeId(next.id); setDocuments(docs); setLoaded({});
     setTarget(docs[0]?.id ?? ""); setViewDoc(""); setAnswers({}); setPending(undefined); setTranscript([]);
-    setAnswer(""); setComparisons(undefined); setExplanation(undefined); setRequest(undefined); setTab("Conversation");
+    setAnswer(""); setRequest(undefined); setTab("Conversation");
     setNeedsResume(false);
   }
   async function loadDocument(document: ApiDocument, name?: string): Promise<LoadedDocument> {
@@ -122,7 +121,7 @@ export default function SessionLayout() {
     if (!alive.current) return;
     setDocuments(previous => [...previous.filter(d => d.id !== result.document.id), result.document]);
     if (!target) setTarget(result.document.id);
-    invalidateDraft(); setComparisons(undefined);
+    invalidateDraft();
     await inspect(result.request_id);
     await showDocument(result.document, file.name);
   }
@@ -170,6 +169,32 @@ export default function SessionLayout() {
       await receiveDraft({ ...result, status: "completed", draft_id: result.draft_id, preview_url: result.preview_url, export_url: result.export_url, missing_fields: result.missing_fields ?? [] });
     }
   }
+  async function sendChat(text = answer.trim()) {
+    if (!text) return;
+    const compare = /^(?:please\s+)?compare\b/i.test(text);
+    const explain = /^(?:(?:please\s+)?(?:(?:can|could) you\s+)?(?:explain|define)\b|what (?:is|are|does)\b|what's\b)/i.test(text);
+    const formName = loaded[target]?.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ") ?? "government forms";
+    const formTopic = /pmrf/i.test(formName) ? "PhilHealth PMRF" : /sss.*e.?1/i.test(formName) ? "SSS E-1" : /dswd.*aics/i.test(formName) ? "DSWD AICS" : formName;
+    if (compare || explain) {
+      if (compare && documents.length < 2) {
+        setTranscript(previous => [...previous, { role: "You", text }, { role: "PapelLess", text: "Upload at least two PDFs, then ask me to compare their evidence." }]);
+        setAnswer(""); return;
+      }
+      const result = compare
+        ? await api<Comparison>(`${base}/compare`, post())
+        : await api<Explanation>(`${base}/explanations`, post({ query: /explain (?:this|the) form[.!?]?$/i.test(text) ? `Explain ${formTopic}` : text }));
+      if (!alive.current) return;
+      setTranscript(previous => [...previous, { role: "You", text }, compare
+        ? { role: "PapelLess", text: "Here is the evidence across your documents.", comparison: result as Comparison }
+        : { role: "PapelLess", text: (result as Explanation).assistant_message, explanation: result as Explanation }]);
+      setAnswer(""); await inspect(result.request_id); return;
+    }
+    if (!pending || needsResume) {
+      setTranscript(previous => [...previous, { role: "PapelLess", text: "Start or resume the form before sending an answer. You can still ask me to explain a service or compare documents." }]);
+      return;
+    }
+    await turn({ answer: text });
+  }
   async function buildDraft() {
     invalidateDraft();
     const values = Object.fromEntries(Object.entries(targetAnswers).map(([id, field]) => [id, field.value]));
@@ -209,7 +234,6 @@ export default function SessionLayout() {
       <button className="icon-button" aria-label={dark ? "Use light theme" : "Use dark theme"} onClick={() => setDark(!dark)}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button>
     </div></header>
     <div className="api-notices">
-      <p>Synthetic data only. PDFs persist on this local API; there is no delete endpoint. Nothing is submitted or signed.</p>
       {workspace && <p>Workspace <code>{workspace.id}</code> — save this ID to reopen documents after refresh.</p>}
       <div role="status" aria-live="polite">{busy || notice}</div>
       {error && <p role="alert" className="api-error">{error} Your input is retained. For a failed conversation turn, use Start / resume to retrieve the server’s current question before answering again.</p>}
@@ -246,19 +270,29 @@ export default function SessionLayout() {
           </> : <div className="api-empty"><h2>Your original stays intact.</h2><p>Upload a PDF up to 10 MiB and 10 pages. Add more PDFs to compare their evidence.</p></div>}
         </section>
         <section className={`api-work-pane api-mobile-${mobilePane === "Work" ? "visible" : "hidden"}`} aria-label="Form workflow">
-          <nav className="api-tabs" aria-label="Workspace tools">{(["Conversation", "Review", "Compare", "Explain"] as const).map(t => <button key={t} className={tab === t ? "active" : ""} aria-pressed={tab === t} onClick={() => setTab(t)}>{t}</button>)}</nav>
-          <div className="api-pane-content" aria-busy={!!busy}>
-            <h1 ref={heading} tabIndex={-1}>{tab === "Conversation" ? "One answer at a time." : tab === "Review" ? "Check your draft." : tab === "Compare" ? "Compare the evidence." : "Understand the paperwork."}</h1>
+          <nav className="api-tabs" aria-label="Workspace tools">{(["Conversation", "Review"] as const).map(t => <button key={t} className={tab === t ? "active" : ""} aria-pressed={tab === t} onClick={() => setTab(t)}>{t}</button>)}</nav>
+          <div className={`api-pane-content ${tab === "Conversation" ? "api-chat" : ""}`} aria-busy={!!busy}>
+            {tab === "Review" && <h1 ref={heading} tabIndex={-1}>Check your draft.</h1>}
             {tab === "Conversation" && <>
-              <p>The local model asks about applicant-editable fields. Skip leaves a field blank; Finish partial leaves unanswered or unresolved fields blank.</p>
-              <button className="button secondary" disabled={!!busy || !target} onClick={() => void run("Retrieving the next question…", () => turn())}>Start / resume conversation</button>
-              {needsResume && <p role="status">Conversation state needs refreshing. Use Start / resume before answering again, or Finish partial to leave the current server question blank.</p>}
-              <div className="api-transcript" role="log" aria-label="Form conversation">{transcript.map((message, index) => <div className={`api-message api-${message.role === "You" ? "user" : "assistant"}`} key={index}><strong>{message.role}</strong><p>{message.text}</p></div>)}</div>
-              {pending && <div className="api-question"><h2>{pending.label ?? pending.name ?? "Next question"}</h2><p>{pending.assistant_message}</p><small>Source slot: {pending.field}</small>{pending.conflict && <><p>Conflicting sources. Resolving this question affects only this document’s current slot.</p>{evidence(pending.conflict.sources)}</>}</div>}
-              <form onSubmit={e => { e.preventDefault(); if (!needsResume && answer.trim()) void run("Saving answer and requesting next question…", () => turn({ answer })); }}>
-                <label htmlFor="form-answer">{pending ? "Your synthetic answer" : "Start the conversation to answer"}</label><textarea id="form-answer" value={answer} onChange={e => setAnswer(e.target.value)} maxLength={4000} disabled={!!busy || !pending || needsResume} />
-                <div className="api-actions"><button className="button primary" disabled={!!busy || !pending || needsResume || !answer.trim()}>Send answer</button><button type="button" className="button secondary" disabled={!!busy || !pending || needsResume} onClick={() => void run("Leaving this field blank…", () => turn({ skip: true }))}>Skip</button><button type="button" className="text-button" disabled={!!busy || !target} onClick={() => void run("Creating partial draft…", () => turn({ finalize: true }))}>Finish partial</button></div>
-              </form>
+              <div className="api-transcript" role="log" aria-label="Form conversation">
+                {!transcript.length && <div className="api-chat-empty"><h1 ref={heading} tabIndex={-1}>Let’s work through your form.</h1><p>Answer one question at a time, or ask me to explain DSWD, SSS or PhilHealth paperwork.</p><button className="button secondary" disabled={!!busy || !target} onClick={() => void run("Retrieving the next question…", () => turn())}>Start conversation</button></div>}
+                {transcript.map((message, index) => <div className={`api-message api-${message.role === "You" ? "user" : "assistant"}`} key={index}><span className="sr-only">{message.role}: </span><p>{message.text}</p>
+                  {message.explanation && message.explanation.citations.length > 0 && <ul className="api-chat-sources">{message.explanation.citations.map((citation, i) => <li key={i}>{/^https:\/\//i.test(citation.url) ? <a href={citation.url} target="_blank" rel="noreferrer">{citation.feed} · {citation.term}</a> : <span>{citation.feed} · {citation.term}</span>}</li>)}</ul>}
+                  {message.comparison && (message.comparison.comparisons.length ? message.comparison.comparisons.map((comparison, i) => <div className="api-comparison" key={i}><h2>{comparison.name}</h2><p>{comparison.outcome.replaceAll("_", " ")}</p>{evidence(comparison.sources)}{comparison.outcome === "conflict" && <p>Resume the form to clarify the affected field.</p>}</div>) : <p>No matching facts found. This does not mean the documents agree.</p>)}
+                </div>)}
+                {pending?.conflict && <div className="api-message api-assistant"><p>Conflicting sources. Your answer resolves only the current field in this form.</p>{evidence(pending.conflict.sources)}</div>}
+                {needsResume && <p role="status">Resume the conversation to refresh the current question before answering.</p>}
+                {busy && <p className="api-chat-status" role="status">{busy}</p>}
+                <div ref={conversationEnd} />
+              </div>
+              <div className="api-chat-footer">
+                <div className="api-suggestions"><button disabled={!!busy || !target} onClick={() => void run("Explaining the form…", () => sendChat("Explain this form"))}>Explain this form</button><button disabled={!!busy || documents.length < 2} onClick={() => void run("Comparing document evidence…", () => sendChat("Compare my documents"))}>Compare my documents</button></div>
+                <form className="api-composer" onSubmit={e => { e.preventDefault(); void run("Responding…", () => sendChat()); }}>
+                  <label className="sr-only" htmlFor="form-answer">Message PapelLess</label><textarea id="form-answer" rows={2} placeholder={pending ? "Your answer, or ask me to explain…" : "Ask about your form…"} value={answer} onChange={e => setAnswer(e.target.value)} maxLength={4000} disabled={!!busy} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
+                  <button className="api-send" aria-label="Send message" disabled={!!busy || !answer.trim()}><ArrowUp size={20} /></button>
+                </form>
+                <div className="api-chat-controls">{transcript.length > 0 && <button className="text-button" disabled={!!busy || !target} onClick={() => void run("Retrieving the next question…", () => turn())}>Resume form</button>}<button className="text-button" disabled={!!busy || !pending || needsResume} onClick={() => void run("Leaving this field blank…", () => turn({ skip: true }))}>Skip field</button><button className="text-button" disabled={!!busy || !target} onClick={() => void run("Creating partial draft…", () => turn({ finalize: true }))}>Finish partial</button></div>
+              </div>
             </>}
             {tab === "Review" && <>
               <p>Review answers by source slot, not semantic name. Editing invalidates the draft and its confirmation. Unresolved conflict values remain blank even after direct editing.</p>
@@ -276,8 +310,6 @@ export default function SessionLayout() {
                 {confirmed === draft.draft_id ? <><p className="api-confirmed">You confirmed this draft{draft.missing_fields.length ? " with blank / unresolved fields" : ""}.</p><button className="button primary" disabled={!!busy} onClick={() => void run("Exporting PDF…", () => download(draft.export_url, `${draft.draft_id}-DRAFT.pdf`, post()))}><Download size={16} />Download confirmed PDF</button></> : <button className="button primary" disabled={!!busy || !preview} onClick={() => setConfirmOpen(true)}>Confirm information</button>}
               </div>}
             </>}
-            {tab === "Compare" && <><p>Compare semantic facts across uploaded PDFs. An empty result means no matching facts—not agreement. Known extraction failures are shown, never replaced with invented evidence.</p><button className="button primary" disabled={!!busy || documents.length < 2} onClick={() => void run("Comparing document evidence…", async () => { invalidateDraft(); const result = await api<Comparison>(`${base}/compare`, post()); setComparisons(result); await inspect(result.request_id); })}>Compare documents</button>{documents.length < 2 && <p>Upload at least two PDFs.</p>}{comparisons && (comparisons.comparisons.length ? comparisons.comparisons.map((comparison, i) => <div className="api-comparison" key={`${comparison.name}-${i}`}><h2>{comparison.name}</h2><p>{comparison.outcome.replaceAll("_", " ")}</p>{evidence(comparison.sources)}{comparison.outcome === "conflict" && <p>Return to Conversation and use Start / resume to clarify the affected slot.</p>}</div>) : <p>No matching facts found.</p>)}</>}
-            {tab === "Explain" && <><p>Bundled official-source English descriptions for DSWD, SSS and PhilHealth. Demo — not official government advice. No eligibility decisions or approvals.</p><form onSubmit={e => { e.preventDefault(); void run("Looking up service explanation…", async () => { const result = await api<Explanation>(`${base}/explanations`, post({ query })); setExplanation(result); await inspect(result.request_id); }); }}><label htmlFor="explain-query">Government-service question</label><textarea id="explain-query" value={query} onChange={e => setQuery(e.target.value)} required minLength={1} maxLength={500} /><button className="button primary" disabled={!!busy || !query.trim()}>Explain</button></form>{explanation && <div className="api-explanation"><p>Status: {explanation.status.replaceAll("_", " ")}</p><p>{explanation.assistant_message}</p><h2>Official sources</h2>{explanation.citations.length ? <ul>{explanation.citations.map((citation, index) => <li key={index}>{/^https:\/\//i.test(citation.url) ? <a href={citation.url} target="_blank" rel="noreferrer">{citation.feed} · {citation.term}</a> : <span>{citation.feed} · {citation.term}</span>}</li>)}</ul> : <p>No citations returned.</p>}</div>}</>}
           </div>
         </section>
       </main>
