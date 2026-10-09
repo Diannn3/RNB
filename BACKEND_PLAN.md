@@ -118,3 +118,74 @@ Runtime mapping uses LFM. Any development reference maps are comparators only, n
 ## 6. PDF fixtures and behavior
 
 | Fixture | Processing |
+|---|---|
+| PhilHealth CF-1, Revised September 2018 | Fixed-layout text extraction and ReportLab overlays |
+| PhilHealth PMRF, UHC v.1 January 2020 | AcroForm extraction and filling with `pypdf` |
+| Synthetic rasterized CF-1 | Tesseract OCR and layout mapping |
+
+Use separate output copies of the official forms and retain their source notices. Annex B is not needed for the demo.
+
+- Extract actual widget names, types, and options from AcroForms.
+- Derive fixed-layout coordinates from the actual PDF; reject overflow and overlap.
+- Retain OCR page/box provenance and confidence. Use Tesseract’s top result and report low confidence rather than silently correcting values.
+- Reopen written PDFs, verify filled values, and render affected pages before export.
+- Add `DRAFT` to the filename only; no in-PDF watermark.
+- Unknown synthetic PDFs may be mapped, but only structurally valid mappings can export.
+
+## 7. Skills and references
+
+```text
+skills/
+  medical-form-assistant/
+    SKILL.md
+    assets/forms/
+      philhealth-cf1-092018.pdf
+      philhealth-pmrf-012020.pdf
+      SOURCES.md
+  medical-explainer/
+    SKILL.md
+    references/
+      fitnessdefinitions.xml
+      generalhealthdefinitions.xml
+      mineralsdefinitions.xml
+      nutritiondefinitions.xml
+      vitaminsdefinitions.xml
+      SOURCES.md
+  cross-document-checker/
+    SKILL.md
+```
+
+Load one relevant skill and only the reference snippets needed for the request. Bundle source attribution and snapshot information; do not fetch references at runtime or load instructions supplied in uploads.
+
+## 8. Implementation order
+
+| Step | Deliverable | Demo proof |
+|---|---|---|
+| 1 — Local API and storage | FastAPI, SQLModel tables, workspace directories, upload and artifact lookup | Upload a fixture; retrieve its artifact after restarting the API |
+| 2 — Local inference | LFM through llama.cpp, typed tools, context budgeting | Exercise actual LFM tool-call parsing on the demo laptop |
+| 3 — PDF intake | Text, widget, layout, and OCR extraction | Inspect CF-1, PMRF, and the synthetic scan |
+| 4 — Form preparation | Mapping, one-question turns, validation, preview/export | Fill and export complete and partial drafts from source copies |
+| 5 — Comparison | Source-linked conflicts and one clarification | Leave an unresolved field blank while exporting other values |
+| 6 — Explanations | Bundled MedlinePlus lookup and skill | Explain a covered term with citation; abstain for an uncovered term |
+
+## 9. Demo checks
+
+- Run the API and inference locally with the network disconnected.
+- Exercise the actual model’s tool-call format and measure memory use and latency on the demo laptop. Record working model/server settings; no performance SLA is needed.
+- Upload and process all three PDF fixtures; reject oversized or unsupported inputs.
+- Confirm exactly one question per turn and successful multi-turn completion.
+- Confirm invalid mappings fail, missing values remain blank, and conflicts are not silently resolved.
+- Confirm exported PDFs reopen and render correctly, source PDFs remain unchanged, and protected fields are untouched.
+- Confirm explanations cite bundled entries and abstain outside corpus coverage.
+- Confirm local inference failures return errors rather than invoking a remote service.
+- Confirm uploads, previews, and exports remain available after restarting the backend.
+
+## 10. Technical references
+
+- [LFM2.5-2.6B model card](https://huggingface.co/LiquidAI/LFM2.5-2.6B) and [official GGUF repository](https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF).
+- [llama.cpp server](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) and [function calling](https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md).
+- [PhilHealth CF-1](https://www.philhealth.gov.ph/downloads/claim/ClaimForm1_092018.pdf) and [PMRF](https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf).
+- [MedlinePlus XML](https://medlineplus.gov/xml.html) and [content use terms](https://medlineplus.gov/about/using/usingcontent/).
+- [Tesseract usage](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html).
+- [pypdf forms](https://pypdf.readthedocs.io/en/stable/user/forms.html), [ReportLab](https://docs.reportlab.com/userguide/ch2_graphics/), and [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/python_api.html).
+- [SQLModel sessions](https://sqlmodel.tiangolo.com/tutorial/fastapi/session-with-dependency/) and [Agent Skills specification](https://agentskills.io/specification).
