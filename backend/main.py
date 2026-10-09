@@ -371,13 +371,20 @@ def compare(workspace_id: str, session: SessionDep):
 
 class ExplanationInput(Input):
     query: str = Field(min_length=1, max_length=500)
+    document_id: str | None = Field(default=None, min_length=1, max_length=100)
 
 
 @app.post('/api/v1/workspaces/{workspace_id}/explanations')
 def explanations(workspace_id: str, body: ExplanationInput, session: SessionDep):
     db.resource(session, db.WorkspaceRecord, workspace_id)
     with lock, operation(session, workspace_id, 'explanation') as request:
-        result = explain(body.query)
+        structure = None
+        if body.document_id is not None:
+            document = db.resource(session, db.DocumentRecord, body.document_id)
+            if document.workspace_id != workspace_id:
+                raise ValueError('document_outside_workspace')
+            structure = get_structure(session, body.document_id)
+        result = explain(body.query, structure)
         db.transition(session, request, 'completed')
         return {'request_id': request.id, **result}
 
