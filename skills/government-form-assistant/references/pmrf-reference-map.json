@@ -3,23 +3,23 @@
   "map_id": "philhealth-pmrf-uhc-v1-2020-semantic-map",
   "generated_by": "GPT-Luna",
   "generated_on": "2026-10-09",
-  "purpose": "Semantic comparator for development-time mapping evaluation only.",
+  "purpose": "Explicitly development-only semantic comparator for PMRF parser evaluation; not an applicant workflow map.",
   "runtime_use": false,
-  "runtime_policy": "Runtime LFM must map the actual uploaded PDF structure. This artifact is never a runtime fallback or source of field coordinates.",
+  "runtime_policy": "The runtime model must map the actual uploaded PDF structure. This artifact is never a runtime fallback, candidate source, or source of field coordinates.",
   "source_form": {
     "title": "PhilHealth Member Registration Form (PMRF)",
     "revision": "UHC v.1 January 2020",
     "page_count": 2,
-    "form_type": "Member-completed AcroForm",
+    "form_type": "Member-completed fixed-layout PDF; official source has zero AcroForm widgets",
     "url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
     "source_notice": "This form may be reproduced and is NOT FOR SALE. This reference map is not a modified copy of the official form."
   },
   "limitations": [
     "This map was prepared from the official form's extracted text and semantic labels, not a verified widget-by-widget inspection.",
     "No PDF widget identifiers, field names, bounding boxes, page coordinates, or exact widget geometry are asserted.",
-    "At runtime, enumerate actual AcroForm widgets and validate labels/types/options before applying any candidate mapping.",
+    "At runtime, derive labels and candidate regions from the actual fixed layout and validate labels/types/options before applying any candidate mapping; never assume AcroForm widgets exist.",
     "The form's printed layout and extraction order include ambiguous/combined labels; resolve association against the actual PDF, not this semantic map alone.",
-    "Field values must come from the patient/member or explicitly provided source documents; never infer missing identity data."
+    "Field values must come from the synthetic applicant/member or explicitly supplied synthetic source documents; never infer identity data, member classification, or eligibility."
   ],
   "field_candidates": [
     {"logical_field": "member.registration_purpose", "section": "Purpose", "source_label": "Registration / Updating/Amendment", "role": "member", "status": "candidate", "allowed_values_from_form": ["Registration", "Updating/Amendment"]},

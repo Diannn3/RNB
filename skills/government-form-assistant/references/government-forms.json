@@ -1,0 +1,58 @@
+{
+  "artifact_type": "form_safety_and_provenance_reference",
+  "retrieved_on": "2026-10-09",
+  "mapping_authority": false,
+  "policy": "Historical source and safety notes only. Never use these notes or development semantic maps as runtime field candidates, identifiers, coordinates, fallback, or eligibility authority. Inspect the actual PDF and protect agency-only and attestation regions before any synthetic draft.",
+  "forms": [
+    {
+      "agency": "DSWD",
+      "service": "AICS",
+      "title": "General Intake Sheet",
+      "printed_version": "DSWD-PMB-GF-011 REV 03, 14 MAY 2024",
+      "official_source_url": "https://fo4b.dswd.gov.ph/wp-content/uploads/2024/08/RFQ-No.-2024-08-0792-AICS-OCCI-FORMS.pdf",
+      "source_pdf_page": 4,
+      "default_file": "dswd-aics-general-intake-sheet.pdf",
+      "source_kind": "One-page extract retaining the scanned official blank form; full official source preserved separately",
+      "applicant_boundary": "Part I: To be filled out by Client; client/representative and beneficiary identifying information are distinct",
+      "protected_boundary": "Administrative header/routing above Part I; all Part II: To be Filled out by DSWD Personnel and everything below",
+      "cautions": [
+        "Image-only, zero AcroForm widgets; bilingual labels with small English labels may be uncertain or missed by printed-English OCR",
+        "An OCR banner mentioning DSWD personnel is not automatically the staff-only section boundary",
+        "Never determine crisis eligibility, select staff sector/disability classifications, make a social-worker assessment, recommend/award assistance, calculate amounts, or fill signatures/approvals"
+      ]
+    },
+    {
+      "agency": "SSS",
+      "service": "Personal Record E-1",
+      "title": "Personal Record for issuance of SS number",
+      "printed_version": "COV-01214 (09-2015)",
+      "official_source_url": "https://www.sss.gov.ph/wp-content/uploads/2024/10/E1-Personal-Record.pdf",
+      "default_file": "sss-e1-personal-record.pdf",
+      "source_kind": "Unmodified official three-page text PDF, zero AcroForm widgets",
+      "applicant_boundary": "Part I: To be filled out by the registrant; only independently mapped synthetic personal/dependent details",
+      "protected_boundary": "SS-number issuance, Part II: To be filled out by SSS on main/additional sheets, D. Certification, working-spouse consent/signature, fingerprints and signature dates; instruction-only page",
+      "cautions": [
+        "Print information in capital letters and follow printed date formatting only for explicit applicant values",
+        "Do not treat missing values as N/A or infer dependent/beneficiary applicability",
+        "Do not determine registration qualification, issue an SS number, select approvals or compute contributions/MSC",
+        "Historical documentary lists and Flexi-Fund references are not verified current policy"
+      ]
+    },
+    {
+      "agency": "PhilHealth",
+      "service": "PMRF",
+      "title": "PhilHealth Member Registration Form",
+      "printed_version": "UHC v.1 January 2020",
+      "official_source_url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
+      "default_file": "philhealth-pmrf-012020.pdf",
+      "source_kind": "Unmodified official two-page text PDF, zero AcroForm widgets",
+      "applicant_boundary": "Member registration/updating details that the inspected structure demonstrates are applicant-answerable",
+      "protected_boundary": "For PhilHealth Use Only, received-by fields, certification/attestation, signatures/thumbmark and associated dates",
+      "cautions": [
+        "The synthetic AcroForm PMRF is a separate technical fixture; its widget identifiers do not exist in this official source",
+        "Member-type categories require explicit applicant statements and do not establish membership, coverage, eligibility or contribution rates",
+        "Never treat a PhilHealth PIN as an SSS number or use claim-form CF-1 semantics for PMRF"
+      ]
+    }
+  ]
+}
