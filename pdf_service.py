@@ -443,14 +443,20 @@ def _write_values(structure, mapping, values):
     return supplied
 
 
-def _fill_widgets(writer, structure, supplied):
+def _widget_changes(structure, mapping, supplied):
     widgets = {widget["id"]: widget for widget in structure["widgets"]}
-    changes = {}
+    changes = {widgets[field["widget_id"]]["field_name"]: "Off" if field["type"] in {"checkbox", "radio"} else ""
+               for field in mapping["fields"] if "widget_id" in field and not field["protected"]}
     for field, value in supplied:
         if "widget_id" not in field:
             continue
         target = widgets[field["widget_id"]]
         changes[target["field_name"]] = value
+    return changes
+
+
+def _fill_widgets(writer, structure, mapping, supplied):
+    changes = _widget_changes(structure, mapping, supplied)
     if not changes:
         return
     from pypdf.generic import TextStringObject, NameObject
@@ -490,11 +496,11 @@ def _overlay_page(page, supplied):
     page.merge_page(PdfReader(stream).pages[0])
 
 
-def _verify_written(path, structure, supplied):
+def _verify_written(path, structure, mapping, supplied):
     reader = _reader(path)
     after = {widget["id"]: widget for widget in _widgets(reader)}
     before = {widget["id"]: widget for widget in structure["widgets"]}
-    changes = {before[field["widget_id"]]["field_name"]: value for field, value in supplied if "widget_id" in field}
+    changes = _widget_changes(structure, mapping, supplied)
     if set(after) != set(before) or len(reader.pages) != structure["page_count"]:
         raise ValueError("Written PDF structure changed unexpectedly")
     affected = {field["page"] for field, value in supplied}
@@ -542,7 +548,7 @@ def export_pdf(source: Path, destination: Path, structure: dict, mapping: dict, 
     supplied = _write_values(structure, mapping, values)
     try:
         writer = PdfWriter(clone_from=_reader(source))
-        _fill_widgets(writer, structure, supplied)
+        _fill_widgets(writer, structure, mapping, supplied)
         for number, page in enumerate(writer.pages):
             overlays = [(field, value) for field, value in supplied if field["page"] == number and "box_id" in field]
             if overlays:
@@ -550,7 +556,7 @@ def export_pdf(source: Path, destination: Path, structure: dict, mapping: dict, 
         with tempfile.TemporaryDirectory(prefix=".pdf-export-", dir=destination.parent) as directory:
             temporary = Path(directory) / "verified.pdf"
             writer.write(temporary)
-            _verify_written(temporary, structure, supplied)
+            _verify_written(temporary, structure, mapping, supplied)
             if hashlib.sha256(source.read_bytes()).hexdigest() != digest:
                 raise ValueError("Source PDF changed during export")
             temporary.replace(destination)
