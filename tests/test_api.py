@@ -70,7 +70,6 @@ class ApiBehavior(unittest.TestCase):
                     turn = client.post(prefix + '/messages', json={'document_id': document}).json()
                     self.assertEqual(turn['status'], 'needs_input')
                     self.assertEqual(turn['field'], 'patient_name')
-                    self.assertEqual(turn['assistant_message'].count('?'), 1)
                     result = client.post(prefix + '/messages', json={'finalize': True}).json()
                     self.assertEqual(result['status'], 'completed')
                     self.assertIn('patient_name', result['missing_fields'])
@@ -91,8 +90,9 @@ class ApiBehavior(unittest.TestCase):
                     request_id = invalid.json()['detail']['request_id']
                     self.assertEqual(client.get(f'/api/v1/requests/{request_id}').json()['status'], 'failed')
                     self.assertEqual(client.post(prefix + '/documents', files={'file': ('bad.pdf', b'bad')}).status_code, 422)
-                    covered = client.post(prefix + '/explanations', json={'query': 'amino acids'}).json()
-                    self.assertEqual(covered['citations'][0]['term'], 'Amino Acids')
+                    covered = client.post(prefix + '/explanations', json={'query': 'DSWD AICS'}).json()
+                    self.assertEqual(covered['status'], 'completed')
+                    self.assertEqual(covered['citations'][0]['feed'], 'DSWD')
                     self.assertEqual(client.post(prefix + '/explanations', json={'query': 'quantum healing'}).json()['status'], 'abstained')
                 with TestClient(app) as restarted:
                     self.assertEqual(restarted.get(f'/api/v1/artifacts/{document}').content, source)

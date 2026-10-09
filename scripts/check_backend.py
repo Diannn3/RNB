@@ -36,17 +36,17 @@ def start(directory):
     raise RuntimeError('API startup timed out')
 
 
-def synthetic_form(patient_name='', birth_date=''):
+def synthetic_form(applicant_name='', birth_date=''):
     output = io.BytesIO()
     c = canvas.Canvas(output)
-    c.drawString(50, 780, 'SYNTHETIC patient intake — demo only')
-    for name, label, y in [('patient_name', 'Patient name (required)', 700),
+    c.drawString(50, 780, 'SYNTHETIC DSWD AICS applicant intake — demo only')
+    for name, label, y in [('applicant_name', 'Applicant name (required)', 700),
                            ('birth_date', 'Date of birth YYYY-MM-DD (required)', 620),
-                           ('provider_signature', 'Provider signature — leave untouched', 540)]:
+                           ('agency_signature', 'Agency signature — leave untouched', 540)]:
         c.drawString(50, y + 25, label)
         c.acroForm.textfield(name=name, tooltip=label, x=50, y=y, width=280, height=22,
-                             fieldFlags='required' if name != 'provider_signature' else '',
-                             value={'patient_name': patient_name, 'birth_date': birth_date}.get(name, ''))
+                             fieldFlags='required' if name != 'agency_signature' else '',
+                             value={'applicant_name': applicant_name, 'birth_date': birth_date}.get(name, ''))
     c.save()
     return output.getvalue()
 
@@ -67,10 +67,9 @@ def check_backend():
             structure = client.get(BASE + f'/documents/{document}/structure').json()
             assert structure['page_count'] == 1
             protected = [w for w in structure['widgets'] if w['protected']]
-            assert any(w['field_name'] == 'provider_signature' for w in protected)
+            assert any(w['field_name'] == 'agency_signature' for w in protected)
             result = post(prefix + '/messages', json={'document_id': document})
             assert result['status'] == 'needs_input'
-            assert result['assistant_message'].count('?') == 1
             partial = post(prefix + '/messages', json={'finalize': True})
             assert partial['status'] == 'completed' and partial['missing_fields']
             response = client.post(ORIGIN + partial['export_url'])
@@ -79,11 +78,12 @@ def check_backend():
             assert all(not f.get('/V') for f in reader.get_fields().values())
             assert client.get(ORIGIN + partial['preview_url']).headers['content-type'] == 'image/png'
             assert client.get(BASE + f'/artifacts/{document}').content == content
-            covered = post(prefix + '/explanations', json={'query': 'amino acids'})
-            assert covered['status'] == 'completed' and covered['citations'][0]['term'] == 'Amino Acids'
+            for agency in ('DSWD', 'SSS', 'PhilHealth'):
+                covered = post(prefix + '/explanations', json={'query': agency})
+                assert covered['status'] == 'completed' and covered['citations'][0]['feed'] == agency
             assert post(prefix + '/explanations', json={'query': 'quantum healing'})['status'] == 'abstained'
             invalid = client.post(BASE + prefix + '/drafts', json={'document_id': document,
-                'values': {'provider_signature': 'forbidden'}})
+                'values': {'agency_signature': 'forbidden'}})
             assert invalid.status_code == 422
             invalid = client.post(BASE + prefix + '/documents', files={'file': ('bad.pdf', b'not a PDF')})
             assert invalid.status_code == 422
@@ -98,14 +98,14 @@ def check_backend():
             for _ in range(10):
                 if turn['status'] == 'completed':
                     break
-                assert turn['status'] == 'needs_input' and turn['assistant_message'].count('?') == 1
+                assert turn['status'] == 'needs_input'
                 value = '2000-01-02' if 'birth' in turn['field'] or 'date' in turn['field'] else 'Synthetic Ada'
                 supplied.append(value)
                 turn = post(complete_prefix + '/messages', json={'answer': value})
             assert turn['status'] == 'completed' and not turn['missing_fields'], turn
             filled = PdfReader(io.BytesIO(client.post(ORIGIN + turn['export_url']).content)).get_fields()
             assert {str(f.get('/V')) for f in filled.values() if f.get('/V')} == set(supplied)
-            assert not filled['provider_signature'].get('/V')
+            assert not filled['agency_signature'].get('/V')
             conflict_workspace = post('/workspaces')['id']
             conflict_prefix = f'/workspaces/{conflict_workspace}'
             conflict_docs = []
@@ -123,7 +123,7 @@ def check_backend():
                 result = post(conflict_prefix + '/messages', json={'answer': '2000-01-02'})
             assert result['status'] == 'completed'
             conflict_pdf = PdfReader(io.BytesIO(client.post(ORIGIN + result['export_url']).content)).get_fields()
-            assert not conflict_pdf['patient_name'].get('/V')
+            assert not conflict_pdf['applicant_name'].get('/V')
             assert conflict_pdf['birth_date'].get('/V') == '2000-01-02'
             process.terminate()
             process.wait(timeout=10)

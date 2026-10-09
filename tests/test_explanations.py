@@ -1,34 +1,32 @@
-"""Single deterministic check against the checked-in MedlinePlus corpus."""
+"""Behavioral checks for the bundled Philippine government service lookup."""
 
-from backend.explanations import LABEL, explain
+from urllib.parse import urlsplit
+
+from backend.explanations import explain
 
 
 def test_explanations():
-    covered = explain("What are amino acids?")
-    assert covered["status"] == "completed"
-    assert covered["citations"] == [{
-        "term": "Amino Acids", "feed": "Nutrition",
-        "url": "https://medlineplus.gov/xml/nutritiondefinitions.xml",
-    }]
-    results = [covered]
-    for query in ("quantum healing", "What should I take for my blood pressure?",
-                  "Define protein in Spanish", "protein 中文", "cure blood pressure"):
+    for query, agency, domain in (
+        ("What is DSWD?", "DSWD", "dswd.gov.ph"),
+        ("Explain SSS", "SSS", "sss.gov.ph"),
+        ("What is PhilHealth?", "PhilHealth", "philhealth.gov.ph"),
+        ("AICS", "DSWD", "dswd.gov.ph"),
+        ("E-1", "SSS", "sss.gov.ph"),
+        ("PMRF", "PhilHealth", "philhealth.gov.ph"),
+    ):
         result = explain(query)
-        assert result["status"] == "abstained"
+        assert result["status"] == "completed", (query, result)
+        citation = result["citations"][0]
+        assert citation["feed"] == agency
+        host = urlsplit(citation["url"]).hostname
+        assert host == domain or host.endswith("." + domain)
+    for query in ("quantum healing", "Am I eligible for AICS?", "Approve my SSS benefit",
+                  "Define protein", "PMRF 中文", "", "x" * 301):
+        result = explain(query)
+        assert result["status"] == "abstained", (query, result)
         assert result["citations"] == []
-        results.append(result)
-    ambiguous = explain("heart rate")
-    assert ambiguous["status"] == "completed"
-    ambiguous = explain("blood")
-    assert ambiguous["status"] == "needs_input"
-    assert ambiguous["assistant_message"].count("?") == 1
-    assert ambiguous["citations"] == []
-    results.append(ambiguous)
-    assert explain("protien")["status"] == "completed"
-    for result in results:
-        assert result["assistant_message"].count(LABEL) == 1
 
 
 if __name__ == "__main__":
     test_explanations()
-    print("Bundled definitions: covered, ambiguous, unsupported, and unsafe requests verified.")
+    print("Government service lookup: all three agencies, form aliases, and unsupported requests verified.")

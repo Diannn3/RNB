@@ -16,7 +16,7 @@ from reportlab.pdfgen.canvas import Canvas
 from backend.pdf_service import export_pdf, inspect_document
 
 ROOT = Path(__file__).resolve().parent.parent
-FORMS = ROOT / "skills" / "medical-form-assistant" / "assets" / "forms"
+FORMS = ROOT / "skills" / "government-form-assistant" / "assets" / "forms"
 SOURCE = FORMS / "philhealth-pmrf-012020.pdf"
 DESTINATION = FORMS / "synthetic-pmrf-acroform.pdf"
 MARKER = "SYNTHETIC INTERACTIVE DEMO COPY - NOT THE OFFICIAL FILLABLE SOURCE"
@@ -64,7 +64,7 @@ def generate_fixture(source: Path = SOURCE, destination: Path = DESTINATION) -> 
         canvas.showPage()
     canvas.save()
     if not expected:
-        raise ValueError("No patient-answerable PMRF regions were extracted")
+        raise ValueError("No applicant-answerable PMRF regions were extracted")
     overlay = PdfReader(io.BytesIO(stream.getvalue()))
     writer = PdfWriter(clone_from=PdfReader(source))
     writer._root_object[NameObject("/AcroForm")] = overlay.trailer["/Root"]["/AcroForm"].clone(writer)
