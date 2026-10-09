@@ -8,8 +8,6 @@ Implement `PaperworkAgentAdapter` from `src/domain.ts`, and call `connectPaperwo
 
 Use the target hash returned from ingestion. Preserve actual AcroForm names as field identifiers and their text/checkbox/radio/dropdown semantics. Candidates, source spans, conflicts and questions are separate types. A suggested answer is not a human approval; new suggestions require renewed review.
 
-## Evidence
-
 ## Conversation turns
 
 Optionally implement `turn(input, signal)` and advertise `capabilities.conversation`. Turns are available only when the model is ready and the inference route is local. Inputs include request ID, session epoch, target/supporting documents, analysis revision, current fields, transcript, current question and user text. Return the matching target hash and analysis revision, an assistant message, optional proposals and an optional field question.

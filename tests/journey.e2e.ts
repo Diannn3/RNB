@@ -23,11 +23,12 @@ test("guided interview, cited PDF question, editable preview and dedicated expor
   await expect(page.getByText("0 of 4 reviewed")).toBeVisible();
   await expect(page.locator(".working-preview .react-pdf__Page__canvas")).toBeVisible();
   const canvas = page.locator(".working-preview .react-pdf__Page__canvas");
-  const beforePreview = createHash("sha256").update(await canvas.screenshot()).digest("hex");
+  const previewHash = async () => createHash("sha256").update(await canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL())).digest("hex");
+  const beforePreview = await previewHash();
   await page.getByRole("button", { name: "Approve this answer" }).click();
   await page.getByLabel("Answer Required").fill("Alex Ñ Reyes");
   await expect(page.getByText("0 of 4 reviewed")).toBeVisible();
-  await expect.poll(async () => createHash("sha256").update(await canvas.screenshot()).digest("hex"), { message: "The rendered PDF changes when an unsaved answer is edited" }).not.toBe(beforePreview);
+  await expect.poll(previewHash, { message: "The rendered PDF changes when an unsaved answer is edited" }).not.toBe(beforePreview);
   await page.getByRole("button", { name: "Save answer", exact: true }).click();
   await page.getByRole("button", { name: "Approve this answer" }).click();
   await expect(page.locator(".working-preview .react-pdf__Page__canvas")).toBeVisible();
