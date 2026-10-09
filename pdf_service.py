@@ -441,3 +441,120 @@ def _write_values(structure, mapping, values):
             raise ValueError("Field value overflows its writable region")
         supplied.append((field, value))
     return supplied
+
+
+def _fill_widgets(writer, structure, supplied):
+    widgets = {widget["id"]: widget for widget in structure["widgets"]}
+    changes = {}
+    for field, value in supplied:
+        if "widget_id" not in field:
+            continue
+        target = widgets[field["widget_id"]]
+        changes[target["field_name"]] = value
+    if not changes:
+        return
+    from pypdf.generic import TextStringObject, NameObject
+    for page in writer.pages:
+        for reference in page.get("/Annots", []):
+            widget = reference.get_object()
+            if widget.get("/Subtype") != "/Widget":
+                continue
+            inherited = _inherited(widget)
+            if inherited["/T"] not in changes or inherited.get("/FT") != "/Tx":
+                continue
+            appearance = str(inherited.get("/DA", ""))
+            appearance, count = re.subn(r"(/[^\s]+\s+)[-+]?\d*\.?\d+(\s+Tf)", r"\g<1>9\2", appearance)
+            if not count:
+                raise ValueError("Text widget has no supported font appearance")
+            widget[NameObject("/DA")] = TextStringObject(appearance)
+    writer.update_page_form_field_values(None, changes, auto_regenerate=False)
+
+
+def _overlay_page(page, supplied):
+    stream = io.BytesIO()
+    canvas = Canvas(stream, pagesize=(float(page.mediabox.width), float(page.mediabox.height)))
+    canvas.setFont("Helvetica", 9)
+    for field, value in supplied:
+        x0, y0, x1, y1 = field["rect"]
+        if field["type"] == "checkbox":
+            if value == "Off":
+                continue
+            canvas.line(x0 + 1, y0 + 1, x1 - 1, y1 - 1)
+            canvas.line(x0 + 1, y1 - 1, x1 - 1, y0 + 1)
+        elif field["type"] == "text":
+            canvas.drawString(x0 + 1, y0 + (y1 - y0 - 9) / 2 + 2, value)
+        else:
+            raise ValueError("Unsupported overlay field type")
+    canvas.save()
+    stream.seek(0)
+    page.merge_page(PdfReader(stream).pages[0])
+
+
+def _verify_written(path, structure, supplied):
+    reader = _reader(path)
+    after = {widget["id"]: widget for widget in _widgets(reader)}
+    before = {widget["id"]: widget for widget in structure["widgets"]}
+    changes = {before[field["widget_id"]]["field_name"]: value for field, value in supplied if "widget_id" in field}
+    if set(after) != set(before) or len(reader.pages) != structure["page_count"]:
+        raise ValueError("Written PDF structure changed unexpectedly")
+    affected = {field["page"] for field, value in supplied}
+    for identity, widget in before.items():
+        expected = changes.get(widget["field_name"], widget["value"])
+        if after[identity]["value"] != expected:
+            raise ValueError("Written widget value verification failed")
+        if widget["field_name"] in changes:
+            affected.add(widget["page"])
+    with _PDFIUM_LOCK, pdfium.PdfDocument(str(path)) as document:
+        document.init_forms()
+        for number in sorted(affected or {0}):
+            page = document[number]
+            try:
+                textpage = page.get_textpage()
+                try:
+                    for field, value in supplied:
+                        if field["page"] == number and "box_id" in field and field["type"] == "text":
+                            written = textpage.get_text_bounded(*field["rect"]).strip()
+                            if written != value:
+                                raise ValueError("Written overlay value verification failed")
+                finally:
+                    textpage.close()
+                bitmap = page.render(scale=1.5)
+                try:
+                    image = bitmap.to_pil()
+                    encoded = io.BytesIO()
+                    image.save(encoded, format="PNG")
+                    image.close()
+                    if not encoded.getvalue().startswith(b"\x89PNG\r\n\x1a\n"):
+                        raise ValueError("Written PDF render verification failed")
+                finally:
+                    bitmap.close()
+            finally:
+                page.close()
+
+
+def export_pdf(source: Path, destination: Path, structure: dict, mapping: dict, values: dict) -> None:
+    if source.resolve() == destination.resolve() or (destination.exists() and source.samefile(destination)):
+        raise ValueError("Export must use a separate destination")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    if digest != structure.get("sha256"):
+        raise ValueError("Source PDF changed after extraction")
+    mapping = validate_mapping(structure, [mapping])
+    supplied = _write_values(structure, mapping, values)
+    try:
+        writer = PdfWriter(clone_from=_reader(source))
+        _fill_widgets(writer, structure, supplied)
+        for number, page in enumerate(writer.pages):
+            overlays = [(field, value) for field, value in supplied if field["page"] == number and "box_id" in field]
+            if overlays:
+                _overlay_page(page, overlays)
+        with tempfile.TemporaryDirectory(prefix=".pdf-export-", dir=destination.parent) as directory:
+            temporary = Path(directory) / "verified.pdf"
+            writer.write(temporary)
+            _verify_written(temporary, structure, supplied)
+            if hashlib.sha256(source.read_bytes()).hexdigest() != digest:
+                raise ValueError("Source PDF changed during export")
+            temporary.replace(destination)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("PDF writing or verification failed") from exc
