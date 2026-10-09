@@ -1,0 +1,8 @@
+.venv/
+.runtime/
+__pycache__/
+*.pyc
+app.db
+app.db-*
+workspaces/
+.pytest_cache/
