@@ -6,7 +6,7 @@ The demo is a localhost-only REST API under `/api/v1`; use the server's configur
 
 SQLite resource metadata and uploaded, preview, and exported artifact files persist across restarts. Conversation progress (active/pending question, answers, mappings, and conflict state) is working memory and is lost on restart. After restart, send `document_id` to start a new conversation; uploaded documents and artifact URLs remain available. There is no delete endpoint.
 
-For a browser frontend on another port, use a same-origin development proxy; the API does not enable cross-origin CORS. Current AI verification is paused by user request; no inference server is intentionally running. Model-dependent mapping, questions, and comparison require the local inference server and return explicit errors when it is unavailable. Uploads, extracted structure, saved artifact downloads, and corpus explanations do not require inference.
+For a browser frontend on another port, use a same-origin development proxy; the API does not enable cross-origin CORS. Local AI form mapping and question/answer completion were verified after explicit authorization. The full manual journey still fails during cross-document fact extraction; ungrounded values are rejected. Model-dependent mapping, questions, and comparison require the local inference server and return explicit errors when it is unavailable. Uploads, extracted structure, saved artifact downloads, and corpus explanations do not require inference.
 
 ## Endpoints
 
@@ -77,7 +77,7 @@ A message request has this shape; all keys are optional, with `skip` and `finali
 
 An answer or skip responds to the pending question. One response contains at most one `assistant_message`/question. `document_id` may be omitted while the same in-memory conversation is active; include it to select a document and after an API restart. `finalize:true` exports a partial draft; unanswered and unresolved fields remain blank.
 
-The backend asks about missing patient-editable mapped fields, including optional ones. Use `skip:true` to leave one answer blank, or `finalize:true` to finish a partial draft. Do not combine `answer` with `skip` or `finalize`; sending an answer without a pending question is an error.
+The backend asks about missing applicant-editable mapped fields, including optional ones. Use `skip:true` to leave one answer blank, or `finalize:true` to finish a partial draft. Do not combine `answer` with `skip` or `finalize`; sending an answer without a pending question is an error.
 
 Needs-input response example:
 
@@ -106,14 +106,14 @@ Create a draft directly with `POST /workspaces/{workspace_id}/drafts`:
 Comparison response:
 
 ```json
-{"request_id":"opaque-id","status":"completed","comparisons":[{"name":"patient_date_of_birth","outcome":"conflict","sources":[{"name":"patient_date_of_birth","value":"2000-01-02","document_id":"opaque-id","page":1,"confidence":0.9,"box_id":"p1-t0"}]}]}
+{"request_id":"opaque-id","status":"completed","comparisons":[{"name":"applicant_date_of_birth","outcome":"conflict","sources":[{"name":"applicant_date_of_birth","value":"2000-01-02","document_id":"opaque-id","page":1,"confidence":0.9,"box_id":"p1-t0"}]}]}
 ```
 
 `outcome` is `agreement`, `conflict`, or `insufficient_evidence`; each source is linked to a `box_id` or `widget_id` in its document. A comparison with no matching facts can return an empty `comparisons` list.
 
 OCR source confidence retains Tesseract's 0–100 scale; native text boxes use 100, and widget-source confidence is `null`. Source values and IDs are validated against the extracted structure. Unresolved conflict values are excluded even when passed directly to draft creation.
 
-Explanation response shape is `{"request_id":"...","assistant_message":"...","status":"completed|needs_input|abstained","citations":[{"term":"...","feed":"General Health","url":"https://..."}]}`. Citations can be empty. Explanations use bundled English MedlinePlus definitions, include “Demo — not clinically reviewed,” and abstain outside the corpus; they are not diagnosis or treatment advice.
+Explanation response shape is `{"request_id":"...","assistant_message":"...","status":"completed|needs_input|abstained","citations":[{"term":"...","feed":"DSWD|SSS|PhilHealth","url":"https://..."}]}`. Citations can be empty. Explanations use bundled official-source English government-service descriptions, include “Demo — not official government advice,” and abstain outside the corpus; they do not determine eligibility or approve benefits. Routes and response fields are unchanged.
 
 Health response shape:
 
@@ -122,6 +122,9 @@ Health response shape:
 ```
 
 When local inference is unreachable, `reachable` is `false` and `loaded_models` is omitted; no remote fallback is used.
+
+The default `lfm` profile reports `LFM2.5-2.6B-Q4_K_M`; selecting
+`PAPELLESS_MODEL_PROFILE=qwen` reports `Qwen3.5-4B-Q4_K_M`.
 
 ## Errors
 

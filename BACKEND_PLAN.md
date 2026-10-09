@@ -1,6 +1,6 @@
 # Papelless — Hackathon Backend Plan
 
-Local-first API for conversational medical-form preparation, medical-term explanations, and cross-document conflict detection. Use synthetic data for the demo.
+Local-first API for Philippine government-form preparation, sourced service explanations, and cross-document conflict detection. The demo targets DSWD AICS, SSS membership, and PhilHealth membership with synthetic data only; architecture and API routes remain unchanged.
 
 ## 1. Demo stack
 
@@ -8,7 +8,7 @@ Local-first API for conversational medical-form preparation, medical-term explan
 |---|---|
 | API | FastAPI, REST under `/api/v1`, bound to `127.0.0.1` |
 | Models / database | SQLModel + SQLite for workspace, document, request, and artifact metadata |
-| Local inference | Liquid AI **LFM2.5-2.6B**, served by `llama.cpp` / `llama-server`; start with Q4_K_M |
+| Local inference | **LFM2.5-2.6B Q4_K_M** (default) or **Qwen3.5-4B Q4_K_M**, served by `llama.cpp` / `llama-server` |
 | Context window | **8,192 tokens total**, including prompt, tool schemas, document excerpts, reasoning, and output |
 | Agent operations | Typed, allowlisted tools validated with Pydantic; no unrestricted shell execution |
 | Procedures / references | Developer-maintained `SKILL.md` modules and bundled local resources |
@@ -16,7 +16,7 @@ Local-first API for conversational medical-form preparation, medical-term explan
 | OCR | Tesseract 5, printed English |
 | Client | API client; no browser UI in this backend scope |
 
-Run inference and document processing locally. Use English conversation and explanations. Keep requests sequential for the demo; serialize PDFium operations.
+Run inference and document processing locally. Select `PAPELLESS_MODEL_PROFILE=lfm` for English (default) or `qwen` for natural Taglish conversation and questions; preserve official names, source quotes, user values, JSON keys and tool arguments. Bundled deterministic explanations remain English. Keep requests sequential for the demo; serialize PDFium operations.
 
 ## 2. Demo journeys
 
@@ -25,15 +25,15 @@ Run inference and document processing locally. Use English conversation and expl
 1. Create a workspace and upload a PDF.
 2. Extract text, widgets, page layout, and OCR where needed.
 3. LFM maps extracted fields to logical form fields.
-4. Ask one natural-language question per turn for missing patient-answerable values.
+4. Ask one natural-language question per turn for missing applicant-answerable values.
 5. Validate the mapping and supplied values, fill a copy, reopen and render it.
 6. Automatically export a complete or partial PDF with a `DRAFT` filename suffix.
 
-Use the highest-ranked structurally valid mapping. If none is valid, return an error without exporting. Never invent values, widget IDs, or coordinates. Leave unanswered values blank. Keep signatures, provider-only fields, and PhilHealth-use-only fields untouched; do not submit forms externally.
+Use the highest-ranked structurally valid mapping. If none is valid, return an error without exporting. Never invent values, widget IDs, or coordinates. Leave unanswered values blank. Keep signatures and agency-, employer-, and provider-only fields untouched; do not submit forms externally.
 
-### Medical-term explanations
+### Government-service explanations
 
-Look up a phrase in the five bundled MedlinePlus Definitions of Health Terms XML files. Return an English explanation with a source citation and the label “Demo — not clinically reviewed.” Abstain when the corpus does not cover the phrase. No diagnosis or treatment advice.
+Look up a phrase in the bundled official-source DSWD, SSS, and PhilHealth service corpus (`references/services.json`). Return an English explanation with an official agency citation and the label “Demo — not official government advice.” Abstain outside the corpus. No eligibility determination, benefit approval, legal advice, diagnosis, or treatment advice.
 
 ### Cross-document comparison
 
@@ -50,7 +50,7 @@ Application services
     |-- PDF extraction and OCR
     |-- LFM mapping and question generation
     |-- source-linked comparison
-    |-- skill loader and MedlinePlus lookup
+    |-- skill loader and government-service lookup
     |-- PDF validation, rendering, and export
     |
     +--> SQLite / SQLModel metadata
@@ -82,7 +82,7 @@ Use SQLModel table creation for the demo. Resolve IDs and storage keys through b
 | `GET` | `/api/v1/documents/{id}/structure` | Return extracted form structure |
 | `POST` | `/api/v1/workspaces/{id}/messages` | Submit an answer; return the next question or completion status |
 | `POST` | `/api/v1/workspaces/{id}/compare` | Find source-linked conflicts |
-| `POST` | `/api/v1/workspaces/{id}/explanations` | Explain a phrase using bundled MedlinePlus entries |
+| `POST` | `/api/v1/workspaces/{id}/explanations` | Explain a phrase using bundled government-service entries |
 | `GET` | `/api/v1/requests/{id}` | Read operation status |
 | `POST` | `/api/v1/workspaces/{id}/drafts` | Create or update a draft from validated values |
 | `GET` | `/api/v1/drafts/{id}/preview` | Return a preview |
@@ -95,7 +95,7 @@ Request flow: `accepted → ingesting → ready → generating_proposals → nee
 
 ## 5. Inference and tools
 
-Use the official `LiquidAI/LFM2.5-2.6B-GGUF` model through the local server. The model is text-only: backend tools extract PDF/image content before inference. No remote fallback; local inference failure returns an error.
+Select `PAPELLESS_MODEL_PROFILE=lfm` for `LiquidAI/LFM2.5-2.6B-GGUF`, `LFM2.5-2.6B-Q4_K_M.gguf`, or `qwen` for `unsloth/Qwen3.5-4B-GGUF`, `Qwen3.5-4B-Q4_K_M.gguf`. Both use the local server with an 8,192-token slot. Use text inference only: backend tools extract PDF/image content before inference; no vision projector is required. No remote fallback; local inference failure returns an error.
 
 Keep prompts within the 8,192-token window by selecting relevant conversation turns, document excerpts, and reference snippets. Reserve space for model output rather than sending whole PDFs.
 
@@ -104,9 +104,9 @@ Keep prompts within the 8,192-token window by selecting relevant conversation tu
 | `inspect_document(document_id)` | Identify PDF type, page count, and form kind |
 | `extract_structure(document_id)` | Extract text, widgets, layout, OCR, and provenance |
 | `map_form(document_id)` | Propose a logical-field mapping against extracted structure |
-| `ask_next_question(workspace_id)` | Generate one patient-answerable question |
+| `ask_next_question(workspace_id)` | Generate one applicant-answerable question |
 | `find_conflicts(workspace_id)` | Compare values with source links |
-| `lookup_medlineplus(query)` | Search bundled term definitions |
+| `lookup_government_service(query)` | Search bundled official-source service explanations |
 | `validate_and_export(workspace_id)` | Validate fields and write a new draft PDF |
 
 The backend executes tools and validates typed outputs. Reject unknown tools, IDs, fields, and invalid field types/options. Uploaded document content is data, not instructions. Do not expose shell, arbitrary Python, SQL, direct filesystem, or network tools to the model.
@@ -119,12 +119,12 @@ Runtime mapping uses LFM. Any development reference maps are comparators only, n
 
 | Fixture | Processing |
 |---|---|
-| PhilHealth CF-1, Revised September 2018 | Fixed-layout text extraction and ReportLab overlays |
+| DSWD AICS applicant form | Runtime-grounded extraction and separate draft |
+| SSS Personal Record E-1 | Runtime-grounded extraction and separate draft |
 | PhilHealth PMRF, UHC v.1 January 2020 (official flat source) | Fixed-layout extraction and ReportLab overlays |
-| Synthetic interactive PMRF copy | Grounded AcroForm extraction and filling with `pypdf`; not an official fillable source |
-| Synthetic rasterized CF-1 | Tesseract OCR and layout mapping |
+| CF-1, synthetic CF-1 scan, synthetic interactive PMRF, Annex B | Retained technical parser fixtures, not default demo forms |
 
-Use separate output copies of the official forms and retain their source notices. Annex B is not needed for the demo.
+The exact default files are selected by `skills/government-form-assistant/assets/forms/defaults.json`. Preserve official sources and notices; export separate copies. Annex B remains inspect-only and cannot be populated.
 
 - Extract actual widget names, types, and options from AcroForms.
 - Derive fixed-layout coordinates from the actual PDF; reject overflow and overlap.
@@ -137,22 +137,17 @@ Use separate output copies of the official forms and retain their source notices
 
 ```text
 skills/
-  medical-form-assistant/
+  government-form-assistant/
     SKILL.md
     assets/forms/
-      philhealth-cf1-092018.pdf
+      defaults.json
       philhealth-pmrf-012020.pdf
-      synthetic-pmrf-acroform.pdf
-      synthetic-cf1-scan.pdf
+      # DSWD/SSS defaults and retained technical fixtures
       SOURCES.md
-  medical-explainer/
+  government-service-explainer/
     SKILL.md
     references/
-      fitnessdefinitions.xml
-      generalhealthdefinitions.xml
-      mineralsdefinitions.xml
-      nutritiondefinitions.xml
-      vitaminsdefinitions.xml
+      services.json
       SOURCES.md
   cross-document-checker/
     SKILL.md
@@ -166,16 +161,16 @@ Load one relevant skill and only the reference snippets needed for the request. 
 |---|---|---|
 | 1 — Local API and storage | FastAPI, SQLModel tables, workspace directories, upload and artifact lookup | Upload a fixture; retrieve its artifact after restarting the API |
 | 2 — Local inference | LFM through llama.cpp, typed tools, context budgeting | Exercise actual LFM tool-call parsing on the demo laptop |
-| 3 — PDF intake | Text, widget, layout, and OCR extraction | Inspect CF-1, official PMRF, synthetic interactive PMRF, and synthetic scan |
+| 3 — PDF intake | Text, widget, layout, and OCR extraction | Inspect all three agency defaults plus retained parser fixtures |
 | 4 — Form preparation | Mapping, one-question turns, validation, preview/export | Fill and export complete and partial drafts from source copies |
 | 5 — Comparison | Source-linked conflicts and one clarification | Leave an unresolved field blank while exporting other values |
-| 6 — Explanations | Bundled MedlinePlus lookup and skill | Explain a covered term with citation; abstain for an uncovered term |
+| 6 — Explanations | Bundled government-service lookup and skill | Explain each selected agency/service with an official citation; abstain outside corpus |
 
 ## 9. Demo checks
 
 - Run the API and inference locally with the network disconnected.
 - Exercise the actual model’s tool-call format and measure memory use and latency on the demo laptop. Record working model/server settings; no performance SLA is needed.
-- Upload and process all four PDF fixtures; reject oversized or unsupported inputs.
+- Upload and process the DSWD, SSS, and PhilHealth defaults; retain technical parser coverage and reject oversized or unsupported inputs.
 - Confirm exactly one question per turn and successful multi-turn completion.
 - Confirm invalid mappings fail, missing values remain blank, and conflicts are not silently resolved.
 - Confirm exported PDFs reopen and render correctly, source PDFs remain unchanged, and protected fields are untouched.
@@ -185,10 +180,10 @@ Load one relevant skill and only the reference snippets needed for the request. 
 
 ## 10. Technical references
 
-- [LFM2.5-2.6B model card](https://huggingface.co/LiquidAI/LFM2.5-2.6B) and [official GGUF repository](https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF).
+- [Qwen3.5-4B model card](https://huggingface.co/Qwen/Qwen3.5-4B) and [Unsloth GGUF quantizations](https://huggingface.co/unsloth/Qwen3.5-4B-GGUF).
 - [llama.cpp server](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) and [function calling](https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md).
 - [PhilHealth CF-1](https://www.philhealth.gov.ph/downloads/claim/ClaimForm1_092018.pdf) and [PMRF](https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf).
-- [MedlinePlus XML](https://medlineplus.gov/xml.html) and [content use terms](https://medlineplus.gov/about/using/usingcontent/).
+- Government service and default form provenance: `skills/government-service-explainer/references/SOURCES.md` and `skills/government-form-assistant/assets/forms/SOURCES.md`.
 - [Tesseract usage](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html).
 - [pypdf forms](https://pypdf.readthedocs.io/en/stable/user/forms.html), [ReportLab](https://docs.reportlab.com/userguide/ch2_graphics/), and [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/python_api.html).
 - [SQLModel sessions](https://sqlmodel.tiangolo.com/tutorial/fastapi/session-with-dependency/) and [Agent Skills specification](https://agentskills.io/specification).
