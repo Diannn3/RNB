@@ -16,7 +16,7 @@ from reportlab.pdfgen.canvas import Canvas
 
 # PDFium is not thread safe; all handles are opened and closed under this lock.
 _PDFIUM_LOCK = threading.Lock()
-_PROTECTED = re.compile(r"signature|thumbmark|provider|employer|official capacity|philhealth use|received by|receiving|accreditation", re.I)
+_PROTECTED = re.compile(r"signature|thumbmark|fingerprint|provider|employer|official capacity|(?:philhealth|sss|dswd|agency|office)\s+use|received by|receiving|accreditation", re.I)
 _NAME = re.compile(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*\Z")
 
 
@@ -117,13 +117,38 @@ def _native_page(page, number):
         text = textpage.get_text_range()
         if textpage.count_chars() > 100000:
             raise ValueError("PDF page text exceeds extraction limit")
-        boxes = []
-        for index in range(textpage.count_rects()):
-            rect = list(textpage.get_rect(index))
-            value = textpage.get_text_bounded(*rect).strip()
-            if value:
-                boxes.append({"id": f"p{number}-t{index}", "text": value, "rect": rect,
+        boxes, characters, bounds, previous = [], [], [], None
+
+        def flush():
+            if characters:
+                boxes.append({"id": f"p{number}-t{len(boxes)}", "text": "".join(characters).strip(),
+                              "rect": [min(rect[0] for rect in bounds), min(rect[1] for rect in bounds),
+                                       max(rect[2] for rect in bounds), max(rect[3] for rect in bounds)],
                               "confidence": 100.0, "source": "pdf_text"})
+            characters.clear()
+            bounds.clear()
+
+        # PDFium rectangles can join separate option labels on the same baseline.
+        # Split only at actual character-position gaps, preserving normal word spaces.
+        for index in range(textpage.count_chars()):
+            value = textpage.get_text_range(index, 1)
+            if not value or value in "\r\n":
+                flush()
+                previous = None
+                continue
+            if value.isspace():
+                if characters:
+                    characters.append(value)
+                continue
+            rect = list(textpage.get_charbox(index))
+            if previous is not None and (abs(rect[1] - previous[1]) > 3
+                                         or rect[0] < previous[0] - 2
+                                         or rect[0] - previous[2] > max(4, rect[3] - rect[1])):
+                flush()
+            characters.append(value)
+            bounds.append(rect)
+            previous = rect
+        flush()
         return text, boxes
     finally:
         textpage.close()
@@ -256,11 +281,21 @@ def _protected_regions(page, kind):
     regions = []
     for label in _label_lines(page["boxes"]):
         text, rect = label["text"], label["rect"]
-        if kind == "cf1" and re.search(r"PART\s*III", text, re.I):
+        if kind == "cf1" and re.search(r"^\s*PART\s*III\b", text, re.I):
             regions.append([0, 0, width, min(height, rect[3] + 3)])
         if kind not in {"cf1", "pmrf"} and re.search(r"\b(?:provider|employer)\b", text, re.I):
             regions.append([0, 0, width, min(height, rect[3] + 3)])
-        if re.search(r"(?:for\s+)?philhealth\s+use\s+only", text, re.I):
+        words = set(re.findall(r"[a-z]+", text.lower()))
+        # OCR words can interleave when bilingual labels share a printed row.
+        if (re.search(r"(?:to\s+be\s+)?filled\s+(?:out\s+)?by\s+(?:the\s+)?(?:dswd|sss)\b", text, re.I)
+                or {"part", "filled", "out", "by"} <= words and words & {"dswd", "sss"}):
+            regions.append([0, 0, width, min(height, rect[3] + 3)])
+        if (re.search(r"to\s+be\s+filled\s+(?:out\s+)?by\s+(?:the\s+)?client\b", text, re.I)
+                or {"filled", "out", "by", "client"} <= words):
+            regions.append([0, max(0, rect[1] - 3), width, height])
+        if re.search(r"^\s*[A-Z]\.\s*CERTIFICATION\b", text, re.I):
+            regions.append([0, 0, width, min(height, rect[3] + 3)])
+        if re.search(r"(?:for\s+)?(?:philhealth|sss|dswd|agency|office)\s+use\s+only", text, re.I):
             regions.append([max(0, rect[0] - 5) if rect[0] > width / 2 else 0,
                             0, width, min(height, rect[3] + 3)])
         if _PROTECTED.search(text):
@@ -281,7 +316,7 @@ def _cell_intervals(edges):
         if width <= 20:
             while end < len(clean) - 1 and abs(clean[end + 1] - clean[end] - width) <= max(1, width * 0.15):
                 end += 1
-        if end - index < 3:
+        if end - index < 2:
             end = index + 1
         intervals.append((clean[index], clean[end]))
         index = end
@@ -295,23 +330,38 @@ def _layout_boxes(page, segments):
         if len(box["text"].strip()) >= 4 and not box["text"].strip("_ \r\n"):
             x0, y0, x1, y1 = box["rect"]
             segments.append((x0, y1, x1, y1))
+    raw_horizontal = []
     for x0, y0, x1, y1 in segments:
         if abs(y1 - y0) < 0.6 and abs(x1 - x0) >= 5:
-            line = (min(x0, x1), (y0 + y1) / 2, max(x0, x1))
-            if not any(abs(old[1] - line[1]) < 1.5 and abs(old[0] - line[0]) < 2 and abs(old[2] - line[2]) < 2 for old in horizontal):
-                horizontal.append(line)
+            raw_horizontal.append((min(x0, x1), (y0 + y1) / 2, max(x0, x1)))
         elif abs(x1 - x0) < 0.6 and abs(y1 - y0) >= 5:
             vertical.append(((x0 + x1) / 2, min(y0, y1), max(y0, y1)))
+    # Merge touching cell strokes, not separated groups: printed separators remain
+    # outside the writable target instead of being covered by a single overlay.
+    for start, y, end in sorted(raw_horizontal, key=lambda line: (round(line[1]), line[0])):
+        match = next((index for index, old in enumerate(horizontal)
+                      if abs(old[1] - y) < 0.6 and start <= old[2] + 1.5 and end >= old[0] - 1.5), None)
+        if match is None:
+            horizontal.append((start, y, end))
+        else:
+            old = horizontal[match]
+            horizontal[match] = (min(start, old[0]), old[1], max(end, old[2]))
+    labels = [box for box in page["boxes"] if box["text"].strip("_ .")
+              and re.search(r"\w", box["text"])]
+    rows = _label_lines(labels)
+    sections = [row for row in rows if re.search(r"^\s*(?:PART|SECTION)\s+[IVX\d]+\b", row["text"], re.I)]
     boxes = []
-    for left, bottom, right in sorted(horizontal, key=lambda line: (line[1], line[0])):
+    for left, bottom, right in sorted(horizontal, key=lambda line: (-line[1], line[0])):
         edges = sorted({round(x, 1) for x, low, high in vertical
                         if left - 1 <= x <= right + 1 and low <= bottom + 1 and high >= bottom + 6})
+        edges = [edge for index, edge in enumerate(edges) if index == 0 or edge - edges[index - 1] > 1.5]
+        if len(edges) < 2 and any(left - 1 <= x <= right + 1 and abs(high - bottom) < 1
+                                  and low <= bottom - 6 for x, low, high in vertical):
+            continue
         intervals = _cell_intervals(edges) if len(edges) >= 2 else [(left, right)]
         for x0, x1 in intervals:
             tops = [y for start, y, end in horizontal if 6 <= y - bottom <= 35 and start <= x0 + 1 and end >= x1 - 1]
-            boundaries = tops or [box["rect"][1] for box in page["boxes"]
-                                  if box["text"].strip("_ .") and 8 <= box["rect"][1] - bottom <= 35
-                                  and box["rect"][0] < x1 and box["rect"][2] > x0]
+            boundaries = tops + [box["rect"][1] for box in labels if 10 <= box["rect"][1] - bottom <= 35]
             if not boundaries:
                 continue
             top = min(boundaries)
@@ -324,17 +374,57 @@ def _layout_boxes(page, segments):
                 continue
             if any(_intersects(rect, box["rect"]) for box in boxes):
                 continue
-            labels = sorted((box for box in page["boxes"] if box["text"].strip("_ .")),
-                            key=lambda box: abs(box["rect"][1] - bottom) + abs(box["rect"][0] - x0) / 4)
-            label = labels[0] if labels else {"text": "", "confidence": 100.0}
-            is_check = bool(tops) and len(edges) <= 3 and 5 <= x1 - x0 <= 10.5 and 5 <= top - bottom <= 10.5
-            if not is_check and x1 - x0 < 7:
+            center = (bottom + top) / 2
+            beside = [label for label in labels if 0 <= label["rect"][0] - x1 <= 12
+                      and label["rect"][1] <= center + 3 and label["rect"][3] >= center - 3]
+            cell_count = sum(x0 - 1 <= edge <= x1 + 1 for edge in edges) - 1
+            is_check = bool(tops) and cell_count == 1 and 6 <= x1 - x0 <= 14 and 6 <= top - bottom <= 14 and bool(beside)
+            if not is_check and (x1 - x0 < 7 or rect[3] - rect[1] < 9):
                 continue
-            boxes.append({"id": f"p{page['page']}-b{len(boxes)}", "text": label["text"],
+            below = [label for label in labels if 0 <= bottom - label["rect"][3] <= 14
+                     and label["rect"][0] < x1 and label["rect"][2] > x0]
+            above = [label for label in labels if 0 <= label["rect"][1] - top <= 25
+                     and label["rect"][0] < x1 and label["rect"][2] > x0]
+            aligned = [label for label in labels if label["rect"][2] <= x0
+                       and label["rect"][1] <= center + 3 and label["rect"][3] >= center - 3]
+            candidates = beside if is_check else below or aligned or above
+            if not candidates:
+                continue
+            label = min(candidates, key=lambda item: (
+                max(bottom - item["rect"][3], item["rect"][1] - top, 0),
+                abs((item["rect"][0] + item["rect"][2]) / 2 - (x0 + x1) / 2)))
+            section = min((row for row in sections if row["rect"][1] >= top),
+                          key=lambda row: row["rect"][1] - top, default=None)
+            if sections and section is None:
+                continue
+            row_candidates = [row for row in rows if row["rect"][1] <= center + 3 and row["rect"][3] >= center - 3]
+            if not row_candidates:
+                row_candidates = [row for row in rows if 0 <= row["rect"][1] - top <= 35]
+            row = min(row_candidates, key=lambda row: abs(row["rect"][1] - center), default=None)
+            nearby = [item["text"] for item in labels if item["rect"][0] < x1 and item["rect"][2] > x0
+                      and bottom - 25 <= item["rect"][1] <= top + 25]
+            context = []
+            if section:
+                context.append("Section: " + section["text"])
+            if row:
+                context.append("Row: " + row["text"])
+            if nearby:
+                context.append("Nearby labels: " + " | ".join(nearby))
+            if cell_count > 0 and tops and not is_check:
+                context.append(f"Character cells: {cell_count}")
+            boxes.append({"id": f"p{page['page']}-b{len(boxes)}", "text": label["text"], "context": "; ".join(context),
                           "rect": rect, "confidence": label["confidence"], "source": "layout",
                           "type": "checkbox" if is_check else "text", "options": ["Off", "Yes"] if is_check else [],
                           "protected": bool(_PROTECTED.search(label["text"]))
                           or any(_intersects(rect, region) for region in page["protected_regions"])})
+    for box in boxes:
+        if "Character cells:" not in box["context"]:
+            continue
+        group = sorted((other for other in boxes if "Character cells:" in other["context"]
+                        and abs(other["rect"][1] - box["rect"][1]) < 1.5
+                        and abs(other["rect"][3] - box["rect"][3]) < 1.5), key=lambda item: item["rect"][0])
+        if len(group) > 1:
+            box["context"] += f"; Group: {group.index(box) + 1} of {len(group)} (left to right)"
     return boxes
 
 
