@@ -120,7 +120,8 @@ Runtime mapping uses LFM. Any development reference maps are comparators only, n
 | Fixture | Processing |
 |---|---|
 | PhilHealth CF-1, Revised September 2018 | Fixed-layout text extraction and ReportLab overlays |
-| PhilHealth PMRF, UHC v.1 January 2020 | AcroForm extraction and filling with `pypdf` |
+| PhilHealth PMRF, UHC v.1 January 2020 (official flat source) | Fixed-layout extraction and ReportLab overlays |
+| Synthetic interactive PMRF copy | Grounded AcroForm extraction and filling with `pypdf`; not an official fillable source |
 | Synthetic rasterized CF-1 | Tesseract OCR and layout mapping |
 
 Use separate output copies of the official forms and retain their source notices. Annex B is not needed for the demo.
@@ -141,6 +142,8 @@ skills/
     assets/forms/
       philhealth-cf1-092018.pdf
       philhealth-pmrf-012020.pdf
+      synthetic-pmrf-acroform.pdf
+      synthetic-cf1-scan.pdf
       SOURCES.md
   medical-explainer/
     SKILL.md
@@ -163,7 +166,7 @@ Load one relevant skill and only the reference snippets needed for the request. 
 |---|---|---|
 | 1 — Local API and storage | FastAPI, SQLModel tables, workspace directories, upload and artifact lookup | Upload a fixture; retrieve its artifact after restarting the API |
 | 2 — Local inference | LFM through llama.cpp, typed tools, context budgeting | Exercise actual LFM tool-call parsing on the demo laptop |
-| 3 — PDF intake | Text, widget, layout, and OCR extraction | Inspect CF-1, PMRF, and the synthetic scan |
+| 3 — PDF intake | Text, widget, layout, and OCR extraction | Inspect CF-1, official PMRF, synthetic interactive PMRF, and synthetic scan |
 | 4 — Form preparation | Mapping, one-question turns, validation, preview/export | Fill and export complete and partial drafts from source copies |
 | 5 — Comparison | Source-linked conflicts and one clarification | Leave an unresolved field blank while exporting other values |
 | 6 — Explanations | Bundled MedlinePlus lookup and skill | Explain a covered term with citation; abstain for an uncovered term |
@@ -172,7 +175,7 @@ Load one relevant skill and only the reference snippets needed for the request. 
 
 - Run the API and inference locally with the network disconnected.
 - Exercise the actual model’s tool-call format and measure memory use and latency on the demo laptop. Record working model/server settings; no performance SLA is needed.
-- Upload and process all three PDF fixtures; reject oversized or unsupported inputs.
+- Upload and process all four PDF fixtures; reject oversized or unsupported inputs.
 - Confirm exactly one question per turn and successful multi-turn completion.
 - Confirm invalid mappings fail, missing values remain blank, and conflicts are not silently resolved.
 - Confirm exported PDFs reopen and render correctly, source PDFs remain unchanged, and protected fields are untouched.
