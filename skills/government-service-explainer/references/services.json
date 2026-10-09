@@ -1,0 +1,121 @@
+[
+  {
+    "term": "Department of Social Welfare and Development",
+    "aliases": ["DSWD", "DSWD agency"],
+    "feed": "DSWD",
+    "url": "https://fo11.dswd.gov.ph/wp-content/uploads/2024/05/HRMDD.pdf",
+    "definition": "The Department of Social Welfare and Development (DSWD) is the Philippine government agency mandated to develop, implement, and coordinate social protection and poverty-reduction solutions for poor, vulnerable, and disadvantaged people."
+  },
+  {
+    "term": "Assistance to Individuals in Crisis Situations",
+    "aliases": ["AICS", "DSWD AICS", "Assistance to Individuals in Crisis Situation", "crisis assistance"],
+    "feed": "DSWD",
+    "url": "https://aics.dswd.gov.ph/aics-program/",
+    "definition": "AICS is a DSWD social welfare service for people or families in crisis. It provides assistance for medical, burial, transportation, education, food, or other financial support needs. This description does not determine whether an individual qualifies or will receive assistance."
+  },
+  {
+    "term": "AICS identification requirements in Field Office VIII",
+    "aliases": ["AICS valid ID", "DSWD AICS requirements", "AICS requirements", "AICS identification"],
+    "feed": "DSWD",
+    "url": "https://fo8.dswd.gov.ph/cis-assistance-requirements/",
+    "definition": "DSWD Field Office VIII's AICS guidance generally asks the beneficiary or authorized representative to submit a copy of a valid ID. Other documents depend on the type of assistance. This regional guidance is not a complete national checklist; confirm current requirements with the responsible DSWD office."
+  },
+  {
+    "term": "AICS educational assistance documents in Field Office VIII",
+    "aliases": ["AICS educational assistance", "DSWD educational assistance", "school enrollment document"],
+    "feed": "DSWD",
+    "url": "https://fo8.dswd.gov.ph/cis-assistance-requirements/",
+    "definition": "For educational assistance, DSWD Field Office VIII lists a valid ID and a school-issued document establishing that the student is enrolled. Its guidance asks clients to bring originals and two photocopies. Confirm current local requirements; having these documents does not guarantee assistance."
+  },
+  {
+    "term": "Social Security System",
+    "aliases": ["SSS", "SSS agency"],
+    "feed": "SSS",
+    "url": "https://www.sss.gov.ph/become-an-sss-member/",
+    "definition": "The Social Security System (SSS) provides social security protection for private-sector workers and individually paying members, including self-employed members, overseas Filipino workers, voluntary members, and non-working spouses. Its program has compulsory and voluntary coverage."
+  },
+  {
+    "term": "SSS membership",
+    "aliases": ["SSS member", "SSS registration", "become an SSS member", "social security membership"],
+    "feed": "SSS",
+    "url": "https://www.sss.gov.ph/become-an-sss-member/",
+    "definition": "SSS membership involves coverage under the Social Security System. A first-time registrant applies for an SS number through the SSS website or an SSS branch electronic center. Obtaining an SS number alone does not automatically establish covered membership or entitlement to benefits."
+  },
+  {
+    "term": "Personal Record E-1",
+    "aliases": ["E-1", "E1", "SSS E-1", "SSS Personal Record", "Personal Record", "E-1 form"],
+    "feed": "SSS",
+    "url": "https://www.sss.gov.ph/wp-content/uploads/2024/10/E1-Personal-Record.pdf",
+    "definition": "E-1 is the SSS Personal Record form for issuance of an SS number. It records the registrant's personal data, dependents or beneficiaries, and applicable self-employed, overseas Filipino worker, or non-working spouse information. The form separates registrant entries from fields to be filled out by SSS."
+  },
+  {
+    "term": "E-1 entry instructions",
+    "aliases": ["E-1 instructions", "E1 instructions", "fill out E-1", "SSS form capital letters"],
+    "feed": "SSS",
+    "url": "https://www.sss.gov.ph/wp-content/uploads/2024/10/E1-Personal-Record.pdf",
+    "definition": "The published E-1 form instructs registrants to print information in capital letters using black ink and enter N/A or Not Applicable for inapplicable required data. Part II is for SSS. These are form-entry instructions, not permission for this demo to sign or submit a form."
+  },
+  {
+    "term": "SS number",
+    "aliases": ["SSS number", "social security number", "SS number registration"],
+    "feed": "SSS",
+    "url": "https://www.sss.gov.ph/wp-content/uploads/2024/10/E1-Personal-Record.pdf",
+    "definition": "An SS number is the registrant's lifetime Social Security System number. The E-1 form reminds registrants that they should not have more than one SS number."
+  },
+  {
+    "term": "SSS online SS number application",
+    "aliases": ["apply for SS number", "online SSS registration", "SSS E-Center", "E-1/E-6"],
+    "feed": "SSS",
+    "url": "https://www.sss.gov.ph/become-an-sss-member/",
+    "definition": "SSS directs first-time SS number applicants to its online registration service or a branch electronic center. The online process collects registration details, allows review, and generates an SS number with downloadable Personal Record E-1/E-6 and number slips. This demo cannot access accounts, certify entries, or submit an application."
+  },
+  {
+    "term": "Philippine Health Insurance Corporation",
+    "aliases": ["PhilHealth", "PHIC", "PhilHealth agency"],
+    "feed": "PhilHealth",
+    "url": "https://www.philhealth.gov.ph/about_us/mandate.php",
+    "definition": "The Philippine Health Insurance Corporation (PhilHealth) is the government corporation that administers the National Health Insurance Program. The program finances covered health services; PhilHealth does not itself directly provide health care."
+  },
+  {
+    "term": "PhilHealth membership",
+    "aliases": ["PhilHealth member", "PhilHealth registration", "health insurance membership"],
+    "feed": "PhilHealth",
+    "url": "https://www.philhealth.gov.ph/members/",
+    "definition": "PhilHealth's membership information groups members into direct contributors and indirect contributors. Its member categories include employed and self-earning people, among others. This overview does not select a person's category, calculate contributions, or determine benefit entitlement."
+  },
+  {
+    "term": "PhilHealth Member Registration Form",
+    "aliases": ["PMRF", "PhilHealth PMRF", "PMRF form", "PhilHealth registration form"],
+    "feed": "PhilHealth",
+    "url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
+    "definition": "The PMRF is the PhilHealth Member Registration Form. It is used for registration or updating and amendment of membership information, including personal details, addresses and contact details, dependents, and member type. It contains separate spaces for the member's certification and for PhilHealth use."
+  },
+  {
+    "term": "PhilHealth Identification Number",
+    "aliases": ["PIN", "PhilHealth PIN", "PhilHealth number"],
+    "feed": "PhilHealth",
+    "url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
+    "definition": "A PhilHealth Identification Number (PIN) is the member's unique and permanent number. The PMRF reminds members to use that PIN in transactions with PhilHealth."
+  },
+  {
+    "term": "PMRF entry instructions",
+    "aliases": ["PMRF instructions", "fill out PMRF", "PhilHealth capital letters"],
+    "feed": "PhilHealth",
+    "url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
+    "definition": "The published PMRF instructs users to write information in upper-case letters, enter N/A when information is inapplicable, and complete all fields unless marked optional. The Purpose box distinguishes Registration from Updating/Amendment. The demo does not complete certifications, signatures, thumbmarks, or PhilHealth-only fields."
+  },
+  {
+    "term": "PMRF supporting documents",
+    "aliases": ["PhilHealth requirements", "PMRF requirements", "PMRF proof of identity", "PhilHealth registration documents"],
+    "feed": "PhilHealth",
+    "url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
+    "definition": "The PMRF instructions require a properly completed form accompanied by valid proof of identity for first-time registrants. They also call for supporting documents establishing the relationship between the member and dependents for updating or amendment. Confirm the currently accepted documents with PhilHealth; this is not a complete checklist."
+  },
+  {
+    "term": "PMRF updating or amendment",
+    "aliases": ["PhilHealth updating", "PMRF amendment", "update PhilHealth information", "PhilHealth correction"],
+    "feed": "PhilHealth",
+    "url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
+    "definition": "The PMRF supports updates or amendments such as name or birth-date corrections, sex corrections, civil-status changes, and contact-information updates. Its instructions say to select the appropriate update box, provide the correct information, and submit corresponding supporting documents. This demo only explains that process and does not submit changes."
+  }
+]
