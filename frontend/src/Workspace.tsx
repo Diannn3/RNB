@@ -130,7 +130,6 @@ export default function SessionLayout() {
   useEffect(() => {
     if (stage !== "upload" && !target && !route.pathname.endsWith("/sample") && !busy) {
       navigate("/app", { replace: true });
-      setNotice("Open a PDF to begin this session.");
     }
     if (target && !["signed", "xfa", "image"].includes(target.support) && stage === "verification" && !interviewComplete(useSession.getState().fields, useJourney.getState().progress)) {
       navigate("/app/conversation", { replace: true }); setNotice("Finish the interview before checking your answers.");
