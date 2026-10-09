@@ -2,8 +2,8 @@
 
 **AI checks are paused by explicit user request. Do not start inference or run the
 manual AI journey check until the GPU is available and the user authorizes it.**
-The provisioned llama.cpp build is CPU-only; GPU runtime setup and final model
-verification remain pending. No inference process is currently intentionally running.
+The intended runtime is the official prebuilt NVIDIA CUDA package below, not a
+source build. GPU/model execution remains unverified and paused; no inference server is running.
 
 The provisioned binaries/models live in ignored `.runtime/`; no sudo is needed.
 Run commands from the repository root. The API and inference are localhost-only.
@@ -14,17 +14,25 @@ Use synthetic data only. Do not enable llama-server prompt logging or built-in t
 - Official `LiquidAI/LFM2.5-2.6B-GGUF`, repository revision
   `e7caca5d835a3901a8e0d63e94009429bafafdfc`, `LFM2.5-2.6B-Q4_K_M.gguf`:
   `.runtime/models/LFM2.5-2.6B-Q4_K_M.gguf` (1,674,455,040 bytes).
-- llama.cpp source revision `609290be6b15db02f9d73443435403cbff6e7802`:
-  `.runtime/llama.cpp/build/bin/llama-server`, CPU Release build (`-j 2`).
+- Official [llama.cpp b11429](https://github.com/ggml-org/llama.cpp/releases/tag/b11429),
+  Linux x64 CUDA 12.8 prebuilt: `.runtime/llama-cuda/llama-b11429/llama-server`.
+  Archive: `llama-b11429-bin-ubuntu-cuda-12.8-x64.tar.gz`;
+  SHA-256: `b13c64b9224d3c89d9993945d70cc21177ad00178c21b8d34237e3bc139834f1`.
+- Matching bundled CUDA runtime: `.runtime/llama-cuda/cudart-llama-b11429-bin-ubuntu-cuda-12.8-x64/`.
+  Archive: `cudart-llama-b11429-bin-ubuntu-cuda-12.8-x64.tar.gz`;
+  SHA-256: `f4ab593e31507320b121f2cb21791f4c72420a2483d3df8bf2ca1a97d04e6845`.
+  No CUDA compiler/toolkit or source compilation is required.
 - Rootless Void packages: Tesseract 5.5.2, Leptonica 1.87.0, English tessdata;
   `.runtime/tesseract/usr/bin/tesseract` links to packaged `tesseract-ocr`.
 
-## Start inference
+## Start inference — only after explicit authorization
 
 ```sh
-.runtime/llama.cpp/build/bin/llama-server \
+export LD_LIBRARY_PATH="$PWD/.runtime/llama-cuda/cudart-llama-b11429-bin-ubuntu-cuda-12.8-x64:$PWD/.runtime/llama-cuda/llama-b11429${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+.runtime/llama-cuda/llama-b11429/llama-server \
   --model .runtime/models/LFM2.5-2.6B-Q4_K_M.gguf \
   --alias LFM2.5-2.6B-Q4_K_M --host 127.0.0.1 --port 8081 \
+  --device CUDA0 --gpu-layers 99 \
   --ctx-size 8192 --parallel 1 --threads 4 --threads-batch 4 \
   --batch-size 256 --ubatch-size 128 --cache-ram 0 \
   --jinja --reasoning-budget 0 --no-webui --no-slots --offline --log-disable
@@ -108,8 +116,10 @@ forbids all inference network requests. The manual model journey lives in
 `scripts/check_backend.py`, outside automatic test discovery; run
 `.venv/bin/python -m scripts.check_backend` only after explicit authorization.
 
-Initial CPU-only observation: one native-tool journey took 27.04 seconds and
-executed two real PMRF inspections; server RSS was 2,929,708 KiB. This is not a
-completed GPU or end-to-end acceptance result. Final AI checks and disconnected
-end-to-end verification were stopped and remain unverified.
+Installation verification: both downloaded archives matched their official SHA-256
+digests. Static loader checks found no missing dependencies for `llama-server` or
+`libggml-cuda.so`; CUDA/cuBLAS and the installed NVIDIA driver library resolve.
+No GPU executable, model loading, inference, or GPU performance test was run for
+this prebuilt installation. GPU offload and disconnected end-to-end acceptance
+remain unverified until explicitly authorized.
 

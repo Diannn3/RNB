@@ -199,5 +199,5 @@ Load one relevant skill and only the reference snippets needed for the request. 
 - Frontend handoff: [API_CONTRACT.md](API_CONTRACT.md). Local runtime provisioning and launch commands: [RUNTIME.md](RUNTIME.md).
 - Run the API with `.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000`; configure rootless OCR as documented in `RUNTIME.md`.
 - Verified without inference: persistent artifact metadata, real PDF extraction/OCR, grounded AcroForm and overlay writes, reopen/render checks, protected fields, unresolved-conflict blanking, API errors, and bundled definitions.
-- **AI verification is paused by explicit user request until the GPU is available and testing is authorized.** Model-dependent complete journeys and disconnected end-to-end acceptance remain unverified; the CPU-only provisioned server has been stopped.
+- **AI verification is paused by explicit user request until the GPU is available and testing is authorized.** The official prebuilt Linux x64 CUDA 12.8 runtime and matching CUDA libraries are installed; no source build is required. Model-dependent complete journeys, GPU execution, and disconnected end-to-end acceptance remain unverified; no inference server is running.
 
