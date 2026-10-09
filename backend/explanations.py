@@ -29,7 +29,7 @@ def explain(query: str, structure: dict | None = None, field: dict | None = None
     if not isinstance(query, str) or not query.strip() or len(query) > 300:
         return _reply(unsupported, "abstained")
     request = query.strip().lower().rstrip(".?!").strip()
-    if field_requested or is_field_help(query):
+    if is_field_help(query):
         return _reply(*explain_field(structure, field))
     entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
     if re.fullmatch(r"(?:please )?(?:(?:can|could) you )?explain (?:this|the) form", request):
@@ -77,7 +77,7 @@ def explain(query: str, structure: dict | None = None, field: dict | None = None
                 candidates.clear()
                 best = score
             candidates.append(entry)
-    if not candidates and field and matches_field_query(query, structure, field):
+    if not candidates and (field_requested or (field and matches_field_query(query, structure, field))):
         return _reply(*explain_field(structure, field))
     return _explanation(candidates, unsupported)
 

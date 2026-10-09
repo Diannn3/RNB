@@ -33,6 +33,10 @@ class GuidanceTests(unittest.TestCase):
                 self.assertIn('pantawid.dswd.gov.ph', result['citations'][0]['url'])
         self.assertEqual(explain('Explain SSS', self.structure, field)['citations'][0]['feed'], 'SSS')
         self.assertEqual(explain('Explain this form', self.structure, field)['status'], 'completed')
+        explicit = explain('Explain SSS', self.structure, field, field_requested=True)
+        self.assertEqual(explicit['citations'][0]['feed'], 'SSS')
+        explicit_form = explain('Explain this form', self.structure, field, field_requested=True)
+        self.assertEqual(explicit_form['citations'][0]['term'], 'Pantawid Data Request Form')
 
     def test_repeated_contacts_follow_original_section(self):
         person = match_field(self.structure, {'id': 'p0-b5'})[1]
