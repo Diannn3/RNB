@@ -137,7 +137,7 @@ def mapping_for(session, workspace_id, document_id, request):
     structure = get_structure(session, document_id)
     if document_id not in current['mappings']:
         db.transition(session, request, 'generating_proposals')
-        candidates = inference.map_form(structure, skill('medical-form-assistant'))
+        candidates = inference.map_form(structure, skill('government-form-assistant'))
         current['mappings'][document_id] = pdf.validate_mapping(structure, candidates)
     return structure, current['mappings'][document_id]
 
@@ -281,7 +281,7 @@ def messages(workspace_id: str, body: MessageInput, session: SessionDep):
         unresolved = {n for n, c in current['conflicts'].items() if not c.get('resolved')}
         for name, field in fields.items():
             if not values.get(name) and name not in answered | unresolved:
-                question = inference.ask_question(field, skill('medical-form-assistant'))
+                question = inference.ask_question(field, skill('government-form-assistant'))
                 response = {'assistant_message': question, 'field': name}
                 current['pending'] = {'kind': 'field', 'name': name, 'response': response}
                 db.transition(session, request, 'needs_input')
