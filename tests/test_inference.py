@@ -162,38 +162,24 @@ class InferenceTests(unittest.TestCase):
                 inf, "_complete", side_effect=responses) as complete:
             mapping = inf.map_form(structure, "")
         self.assertEqual(complete.call_count, 2)
-        self.assertEqual(len(mapping), 1)
+        self.assertEqual(len(mapping), 2)
         fields = mapping[0]["fields"]
         self.assertEqual(len(fields), 13)
-        self.assertEqual(fields[-2]["name"], "member_first_name")
+        self.assertEqual(fields[-2]["name"], "patient_first_name")
         self.assertEqual(fields[-1]["name"], "patient_first_name")
         self.assertEqual(fields[-1]["box_id"], "box-12")
         self.assertEqual(fields[-1]["rect"], structure["pages"][0]["boxes"][-1]["rect"])
 
-    def test_mapping_duplicate_semantics_retry_uses_section_evidence(self):
+    def test_mapping_duplicate_semantics_preserve_distinct_slots(self):
         structure = self.mapping_structure(2)
-        duplicate = inf.Proposals(candidates=[
+        proposals = inf.Proposals(candidates=[
             self.mapping_candidate(["member_first_name", "member_first_name"])])
-        corrected = inf.Proposals(candidates=[
-            self.mapping_candidate(["member_first_name", "patient_first_name"])])
-        responses = iter([duplicate, corrected])
-        prompts = []
-
-        def complete(messages, **kwargs):
-            prompts.append([dict(message) for message in messages])
-            return {"content": next(responses).model_dump_json()}
-
         with patch.object(inf, "_tokens", return_value=10), patch.object(
-                inf, "_complete", side_effect=complete) as completion:
+                inf, "_complete", return_value={"content": proposals.model_dump_json()}) as completion:
             mapping = inf.map_form(structure, "")
-        self.assertEqual(completion.call_count, 2)
-        self.assertIn("Duplicate semantic field name: member_first_name",
-                      prompts[1][0]["content"])
-        evidence = json.loads(prompts[0][1]["content"].splitlines()[1])
-        self.assertEqual(evidence["sources"][1]["context"],
-                         "Section: PATIENT INFORMATION; Row: First Name")
-        self.assertEqual([field["name"] for field in mapping[0]["fields"]],
-                         ["member_first_name", "patient_first_name"])
+        self.assertEqual(completion.call_count, 1)
+        self.assertEqual([(field["id"], field["name"]) for field in mapping[0]["fields"]],
+                         [("box-0", "member_first_name"), ("box-1", "member_first_name")])
 
     def test_mapping_does_not_drop_writable_evidence_and_retries_only_once(self):
         structure = self.mapping_structure(2)
@@ -206,31 +192,16 @@ class InferenceTests(unittest.TestCase):
                 inf.map_form(structure, "")
         self.assertEqual(complete.call_count, 2)
 
-    def test_mapping_cross_batch_duplicate_retries_with_existing_assignments(self):
+    def test_mapping_cross_batch_duplicate_keeps_source_identity(self):
         structure = self.mapping_structure(13)
-        first_names = self.mapping_member_names()
-        first = inf.Proposals(candidates=[self.mapping_candidate(first_names)])
-        duplicate = inf.Proposals(candidates=[
-            self.mapping_candidate(["member_first_name"], offset=12)])
-        corrected = inf.Proposals(candidates=[
-            self.mapping_candidate(["patient_first_name"], offset=12)])
-        responses = iter([first, duplicate, corrected])
-        prompts = []
-
-        def complete(messages, **kwargs):
-            prompts.append([dict(message) for message in messages])
-            return {"content": next(responses).model_dump_json()}
-
+        responses = [inf.Proposals(candidates=[self.mapping_candidate(self.mapping_member_names())]),
+                     inf.Proposals(candidates=[self.mapping_candidate(["member_first_name"], offset=12)])]
         with patch.object(inf, "_tokens", return_value=10), patch.object(
-                inf, "_complete", side_effect=complete) as completion:
+                inf, "_complete", side_effect=[{"content": p.model_dump_json()} for p in responses]) as completion:
             mapping = inf.map_form(structure, "")
-        self.assertEqual(completion.call_count, 3)
-        evidence = json.loads(prompts[1][1]["content"].splitlines()[1])
-        self.assertIn({"name": "member_first_name", "label": "member first name"},
-                      evidence["mapped_fields"])
-        self.assertIn("Semantic names already assigned to other sources: member_first_name",
-                      prompts[2][0]["content"])
-        self.assertEqual(mapping[0]["fields"][-1]["name"], "patient_first_name")
+        self.assertEqual(completion.call_count, 2)
+        self.assertEqual([(f["id"], f["name"]) for f in mapping[0]["fields"][-2:]],
+                         [("box-11", "member_first_name"), ("box-12", "member_first_name")])
 
     def test_mapping_geometry_type_and_options_come_only_from_source(self):
         structure = self.mapping_structure(2)

@@ -10,7 +10,7 @@ from backend.pdf_service import _cell_intervals, _intersects, _layout_boxes, _pr
 
 
 def field_for(target, widget=False):
-    return {"name": "member_name", "label": "Member name", "required": True,
+    return {"id": target["id"], "name": "member_name", "label": "Member name", "required": True,
             "type": target["type"], "options": target["options"],
             "widget_id" if widget else "box_id": target["id"],
             "page": target.get("page", 0), "rect": target["rect"], "protected": target["protected"]}
@@ -112,16 +112,19 @@ class PdfBehavior(unittest.TestCase):
                 if widget:
                     canvas.acroForm.textfield(name="member_name", value="OLD", x=40, y=100, width=180, height=22)
                     canvas.acroForm.textfield(name="signature", x=40, y=45, width=180, height=22)
+                    canvas.acroForm.textfield(name="other_name", x=40, y=200, width=180, height=22)
                 else:
                     canvas.rect(40, 100, 180, 22)
                     canvas.rect(40, 45, 180, 22)
                     canvas.drawString(40, 32, "Signature")
+                    canvas.drawString(40, 235, "Member name")
+                    canvas.rect(40, 200, 180, 22)
                 canvas.save()
                 original_hash = hashlib.sha256(source.read_bytes()).hexdigest()
                 structure = inspect_document(source, "synthetic")
                 targets = structure["widgets"] if widget else structure["pages"][0]["boxes"]
                 target = next(target for target in targets if target.get("type") == "text"
-                              and not target["protected"] and target["rect"][1] >= 100)
+                              and not target["protected"] and 100 <= target["rect"][1] < 150)
                 field = field_for(target, widget)
                 bad = {"rank": 10, "fields": [{**field, "rect": [0, 0, 100, 20]}]}
                 mapping = validate_mapping(structure, [{"rank": 20, "fields": []}, bad, {"rank": 1, "fields": [field]}])
@@ -132,7 +135,7 @@ class PdfBehavior(unittest.TestCase):
                     export_pdf(source, output, structure, mapping, {})
                     blank = inspect_document(output, "blank")
                     self.assertEqual(next(item["value"] for item in blank["widgets"] if item["field_name"] == "member_name"), "")
-                export_pdf(source, output, structure, mapping, {"member_name": "ALPHA"})
+                export_pdf(source, output, structure, mapping, {target["id"]: "ALPHA"})
                 self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), original_hash)
                 after = inspect_document(output, "export")
                 if widget:
@@ -143,9 +146,34 @@ class PdfBehavior(unittest.TestCase):
                 locked = {**field_for(protected, widget), "name": "signature"}
                 locked_mapping = validate_mapping(structure, [{"rank": 1, "fields": [field, locked]}])
                 with self.assertRaises(ValueError):
-                    export_pdf(source, output, structure, locked_mapping, {"signature": "FORBIDDEN"})
+                    export_pdf(source, output, structure, locked_mapping, {protected["id"]: "FORBIDDEN"})
                 with self.assertRaises(ValueError):
-                    export_pdf(source, source, structure, mapping, {"member_name": "ALPHA"})
+                    export_pdf(source, source, structure, mapping, {target["id"]: "ALPHA"})
+                other = next(t for t in targets if t.get("type") == "text"
+                             and not t["protected"] and t["rect"][1] >= 200)
+                repeated = field_for(other, widget)
+                duplicate_mapping = validate_mapping(
+                    structure, [{"rank": 1, "fields": [field, repeated]}])
+                export_pdf(source, output, structure, duplicate_mapping,
+                           {field["id"]: "ADA", repeated["id"]: "BEA"})
+                after = inspect_document(output, "separate")
+                if widget:
+                    self.assertEqual([w["value"] for w in after["widgets"] if not w["protected"]],
+                                     ["ADA", "BEA"])
+                else:
+                    import pypdfium2 as pdfium
+                    with pdfium.PdfDocument(str(output)) as document:
+                        page = document[0]
+                        text = page.get_textpage()
+                        try:
+                            self.assertEqual(text.get_text_bounded(*field["rect"]).strip(), "ADA")
+                            self.assertEqual(text.get_text_bounded(*repeated["rect"]).strip(), "BEA")
+                        finally:
+                            text.close()
+                            page.close()
+                with self.assertRaises(ValueError):
+                    validate_mapping(structure, [{"rank": 1, "fields": [
+                        {**field, "id": repeated["id"]}]}])
 
 
 if __name__ == "__main__":
