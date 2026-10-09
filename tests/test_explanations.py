@@ -1,6 +1,6 @@
 """Single deterministic check against the checked-in MedlinePlus corpus."""
 
-from explanations import LABEL, explain
+from backend.explanations import LABEL, explain
 
 
 def test_explanations():

@@ -8,10 +8,10 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel import SQLModel, Session, select
 
-import storage as db
-import pdf_service as pdf
-import inference
-from explanations import explain
+from . import storage as db
+from . import pdf_service as pdf
+from . import inference
+from .explanations import explain
 
 # ponytail: sequential demo; per-workspace locks if concurrent throughput matters.
 lock = RLock()
@@ -126,7 +126,7 @@ def get_structure(session, document_id):
 
 
 def skill(name):
-    return (Path(__file__).parent / 'skills' / name / 'SKILL.md').read_text()
+    return (Path(__file__).parent.parent / 'skills' / name / 'SKILL.md').read_text()
 
 
 def mapping_for(session, workspace_id, document_id, request):

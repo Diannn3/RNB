@@ -1,4 +1,4 @@
-"""Run against real local inference: .venv/bin/python test_backend.py."""
+"""Run against real local inference: .venv/bin/python -m tests.test_backend."""
 import hashlib
 import io
 import os
@@ -16,7 +16,7 @@ BASE = 'http://127.0.0.1:8765/api/v1'
 
 def start(directory):
     process = subprocess.Popen([str(Path('.venv/bin/python').resolve()), '-m', 'uvicorn',
-        'main:app', '--host', '127.0.0.1', '--port', '8765', '--no-access-log'],
+        'backend.main:app', '--host', '127.0.0.1', '--port', '8765', '--no-access-log'],
         env={**os.environ, 'PAPELLESS_DATA': directory},
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(100):
@@ -63,7 +63,7 @@ def test_backend():
             structure = client.get(BASE + f'/documents/{document}/structure').json()
             assert structure['page_count'] == 1
             protected = [w for w in structure['widgets'] if w['protected']]
-            assert any(w['id'] == 'provider_signature' for w in protected)
+            assert any(w['field_name'] == 'provider_signature' for w in protected)
             result = post(prefix + '/messages', json={'document_id': document})
             assert result['status'] == 'needs_input'
             assert result['assistant_message'].count('?') == 1

@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 
 LABEL = "Demo — not clinically reviewed"
-SKILL = Path(__file__).resolve().parent / "skills" / "medical-explainer"
+SKILL = Path(__file__).resolve().parent.parent / "skills" / "medical-explainer"
 FEEDS = {
     "fitnessdefinitions.xml": "Fitness",
     "generalhealthdefinitions.xml": "General Health",
