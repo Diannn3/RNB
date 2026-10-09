@@ -13,3 +13,8 @@ Retrieved 2026-10-09. These PDFs are unmodified source copies fetched from the o
 `synthetic-cf1-scan.pdf` rasterizes the unchanged official CF-1 at 1.5× scale using PDFium and embeds the page image in a PDF for printed-English OCR. It contains no patient values; source notices remain visible.
 
 `synthetic-pmrf-acroform.pdf` is a synthetic interactive derivative, not an official fillable PMRF. The official source above contains zero AcroForm widgets. The generator in `scripts/make_pmrf_fixture.py` adds only patient-editable widgets grounded in extracted source layout and preserves the original notices.
+
+| Synthetic snapshot | SHA-256 |
+|---|---|
+| `synthetic-cf1-scan.pdf` | `673cdd21f92a14163dfa225b73570ae9273fdf3824fe0564adc7712c4159477c` |
+| `synthetic-pmrf-acroform.pdf` | `c52793f3c0e141a5669828aabdfe61d6a76fd0e284892b9a5472059be81d3676` |

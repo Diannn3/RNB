@@ -192,3 +192,12 @@ Load one relevant skill and only the reference snippets needed for the request. 
 - [Tesseract usage](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html).
 - [pypdf forms](https://pypdf.readthedocs.io/en/stable/user/forms.html), [ReportLab](https://docs.reportlab.com/userguide/ch2_graphics/), and [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/python_api.html).
 - [SQLModel sessions](https://sqlmodel.tiangolo.com/tutorial/fastapi/session-with-dependency/) and [Agent Skills specification](https://agentskills.io/specification).
+
+## 11. Implementation handoff
+
+- Backend modules: `backend/`; deterministic checks: `tests/`; fixture generation and explicitly manual AI checks: `scripts/`.
+- Frontend handoff: [API_CONTRACT.md](API_CONTRACT.md). Local runtime provisioning and launch commands: [RUNTIME.md](RUNTIME.md).
+- Run the API with `.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000`; configure rootless OCR as documented in `RUNTIME.md`.
+- Verified without inference: persistent artifact metadata, real PDF extraction/OCR, grounded AcroForm and overlay writes, reopen/render checks, protected fields, unresolved-conflict blanking, API errors, and bundled definitions.
+- **AI verification is paused by explicit user request until the GPU is available and testing is authorized.** Model-dependent complete journeys and disconnected end-to-end acceptance remain unverified; the CPU-only provisioned server has been stopped.
+

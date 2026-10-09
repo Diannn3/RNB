@@ -1,5 +1,10 @@
 # Local runtime
 
+**AI checks are paused by explicit user request. Do not start inference or run the
+manual AI journey check until the GPU is available and the user authorizes it.**
+The provisioned llama.cpp build is CPU-only; GPU runtime setup and final model
+verification remain pending. No inference process is currently intentionally running.
+
 The provisioned binaries/models live in ignored `.runtime/`; no sudo is needed.
 Run commands from the repository root. The API and inference are localhost-only.
 Use synthetic data only. Do not enable llama-server prompt logging or built-in tools.
@@ -89,3 +94,22 @@ the final export gate. All page/provenance numbers are zero-based. Public candid
 ranks use highest numeric rank as best. Layout regions overlapping widgets are
 excluded from proposals. Record actual-model latency and memory measurements after
 these checks; no model inference/performance check was performed during provisioning.
+
+## Non-AI verification
+
+```sh
+.venv/bin/python -m unittest tests.test_api tests.test_pdf_service
+.venv/bin/python -m tests.test_explanations
+```
+
+These exercise actual PDF writing/rendering, persistent artifact lookup, conflict
+blanking, protected values, API errors, and local XML citations. The API check
+forbids all inference network requests. The manual model journey lives in
+`scripts/check_backend.py`, outside automatic test discovery; run
+`.venv/bin/python -m scripts.check_backend` only after explicit authorization.
+
+Initial CPU-only observation: one native-tool journey took 27.04 seconds and
+executed two real PMRF inspections; server RSS was 2,929,708 KiB. This is not a
+completed GPU or end-to-end acceptance result. Final AI checks and disconnected
+end-to-end verification were stopped and remain unverified.
+
