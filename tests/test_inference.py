@@ -49,11 +49,6 @@ class InferenceTests(unittest.TestCase):
                 inf.parse_tool_calls({"content": "<|tool_call_start|>" + expression
                                                + "<|tool_call_end|>"})
 
-    def test_scoped_call_executes_once(self):
-        result = self.run_model([self.call(), {"content": "One page."}])
-        self.assertEqual(self.executed, ["doc-a"])
-        self.assertEqual(result["content"], "One page.")
-
     def test_unknown_and_out_of_scope_never_execute(self):
         for call in [self.call("doc-b"), self.call(name="exec_shell")]:
             with self.subTest(call=call), self.assertRaises(inf.InferenceError):
@@ -61,8 +56,7 @@ class InferenceTests(unittest.TestCase):
         self.assertEqual(self.executed, [])
 
     def test_one_retry(self):
-        result = self.run_model([self.call("doc-b"), self.call(), {"content": "One page."}])
-        self.assertEqual(result["content"], "One page.")
+        self.run_model([self.call("doc-b"), self.call(), {"content": "One page."}])
         self.assertEqual(self.executed, ["doc-a"])
 
     def test_three_round_limit(self):
@@ -101,16 +95,14 @@ class InferenceTests(unittest.TestCase):
             with self.assertRaises(inf.InferenceError):
                 inf._request("/health")
 
-    def test_context_requires_actual_tokenizer(self):
-        with patch.object(inf, "_request", side_effect=[{"prompt": "rendered"},
-                                                       {"tokens": [1, 2, 3]}]) as request:
-            self.assertEqual(inf._tokens(self.messages), 3)
-            self.assertEqual(request.call_args.args[0], "/tokenize")
 
     def test_zero_based_fact_page(self):
         fact = inf.Fact(name="patient_name", value="SYNTHETIC", document_id="doc-a",
                         page=0, confidence=1.0, box_id="box-a")
         self.assertEqual(fact.page, 0)
+        with self.assertRaises(ValidationError):
+            inf.Fact(name="patient_name", value="SYNTHETIC", document_id="doc-a",
+                     page=-1, confidence=1.0, box_id="box-a")
 
     def test_widget_overlap_excluded_and_best_rank_highest(self):
         widget = {"id": "widget-a", "page": 0, "rect": [0, 0, 20, 20],

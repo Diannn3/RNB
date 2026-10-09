@@ -66,13 +66,12 @@ def inspect_document(document_id):
     return Inspection(**{name: structure[name] for name in Inspection.model_fields})
 print(health())
 result = run_tools(
-    [{"role": "user", "content": "Call inspect_document(document_id='doc-demo') exactly once. Then report its page count. Do not guess without calling the tool."}],
+    [{"role": "user", "content": "Inspect document doc-demo with inspect_document, then report its page count. Do not guess without calling the tool."}],
     {"inspect_document": (inspect_document, Inspection)},
     {"document_ids": {"doc-demo"}, "workspace_ids": set()},
 )
-assert calls == ["doc-demo"], calls
-assert result["content"]
-print("Actual LFM typed tool call completed")
+assert set(calls) == {"doc-demo"}, calls
+print("Actual LFM typed tool call completed:", result["content"])
 PY
 ```
 

@@ -1,8 +1,8 @@
 """Run against real local inference: .venv/bin/python -m tests.test_backend."""
-import hashlib
+import sys
 import io
 import os
-from pathlib import Path
+import socket
 import subprocess
 import tempfile
 import time
@@ -11,17 +11,21 @@ import httpx
 from pypdf import PdfReader
 from reportlab.pdfgen import canvas
 
-BASE = 'http://127.0.0.1:8765/api/v1'
+with socket.socket() as reservation:
+    reservation.bind(('127.0.0.1', 0))
+    PORT = reservation.getsockname()[1]
+ORIGIN = f'http://127.0.0.1:{PORT}'
+BASE = ORIGIN + '/api/v1'
 
 
 def start(directory):
-    process = subprocess.Popen([str(Path('.venv/bin/python').resolve()), '-m', 'uvicorn',
-        'backend.main:app', '--host', '127.0.0.1', '--port', '8765', '--no-access-log'],
+    process = subprocess.Popen([sys.executable, '-m', 'uvicorn',
+        'backend.main:app', '--host', '127.0.0.1', '--port', str(PORT), '--no-access-log'],
         env={**os.environ, 'PAPELLESS_DATA': directory},
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for _ in range(100):
         if process.poll() is not None:
-            raise RuntimeError('API exited during startup')
+            raise RuntimeError('API exited during startup: ' + process.communicate()[0].decode())
         try:
             if httpx.get(BASE + '/workspaces/missing', timeout=1).status_code == 404:
                 return process
@@ -69,11 +73,11 @@ def test_backend():
             assert result['assistant_message'].count('?') == 1
             partial = post(prefix + '/messages', json={'finalize': True})
             assert partial['status'] == 'completed' and partial['missing_fields']
-            response = client.post(BASE + partial['export_url'])
+            response = client.post(ORIGIN + partial['export_url'])
             assert response.is_success
             reader = PdfReader(io.BytesIO(response.content))
             assert all(not f.get('/V') for f in reader.get_fields().values())
-            assert client.get(BASE + partial['preview_url']).headers['content-type'] == 'image/png'
+            assert client.get(ORIGIN + partial['preview_url']).headers['content-type'] == 'image/png'
             assert client.get(BASE + f'/artifacts/{document}').content == content
             covered = post(prefix + '/explanations', json={'query': 'amino acids'})
             assert covered['status'] == 'completed' and covered['citations'][0]['term'] == 'Amino Acids'
@@ -99,7 +103,7 @@ def test_backend():
                 supplied.append(value)
                 turn = post(complete_prefix + '/messages', json={'answer': value})
             assert turn['status'] == 'completed' and not turn['missing_fields']
-            filled = PdfReader(io.BytesIO(client.post(BASE + turn['export_url']).content)).get_fields()
+            filled = PdfReader(io.BytesIO(client.post(ORIGIN + turn['export_url']).content)).get_fields()
             assert {str(f.get('/V')) for f in filled.values() if f.get('/V')} == set(supplied)
             assert not filled['provider_signature'].get('/V')
             conflict_workspace = post('/workspaces')['id']
@@ -118,15 +122,15 @@ def test_backend():
             if result['status'] == 'needs_input':
                 result = post(conflict_prefix + '/messages', json={'answer': '2000-01-02'})
             assert result['status'] == 'completed'
-            conflict_pdf = PdfReader(io.BytesIO(client.post(BASE + result['export_url']).content)).get_fields()
+            conflict_pdf = PdfReader(io.BytesIO(client.post(ORIGIN + result['export_url']).content)).get_fields()
             assert not conflict_pdf['patient_name'].get('/V')
             assert conflict_pdf['birth_date'].get('/V') == '2000-01-02'
             process.terminate()
             process.wait(timeout=10)
             process = start(directory)
             assert client.get(BASE + f'/artifacts/{document}').content == content
-            assert client.get(BASE + partial['preview_url']).status_code == 200
-            assert client.post(BASE + partial['export_url']).content == response.content
+            assert client.get(ORIGIN + partial['preview_url']).status_code == 200
+            assert client.post(ORIGIN + partial['export_url']).content == response.content
             assert client.get(BASE + f'/requests/{partial["request_id"]}').json()['status'] == 'completed'
             print('Actual local model: complete/partial turns, conflict blanks, protection, errors, citations, restart persistence verified.')
         finally:

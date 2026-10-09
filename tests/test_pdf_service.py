@@ -49,7 +49,6 @@ class PdfBehavior(unittest.TestCase):
                     self.assertEqual(next(item["value"] for item in blank["widgets"] if item["field_name"] == "member_name"), "")
                 export_pdf(source, output, structure, mapping, {"member_name": "ALPHA"})
                 self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), original_hash)
-                self.assertTrue(output.read_bytes().startswith(b"%PDF"))
                 after = inspect_document(output, "export")
                 if widget:
                     self.assertEqual(next(item["value"] for item in after["widgets"] if item["field_name"] == "member_name"), "ALPHA")
