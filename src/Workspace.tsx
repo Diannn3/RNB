@@ -7,14 +7,12 @@ import {
   Suspense,
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { Group, Panel, Separator } from "react-resizable-panels";
 import { useDropzone } from "react-dropzone";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { animate, createScope } from "animejs";
 import {
   ArrowRight,
+  Moon,
+  Sun,
   Check,
   ChevronDown,
   Download,
@@ -42,31 +40,48 @@ import {
 import {
   download,
   disposeDownloadUrls,
-  exportDraft,
   parseDocument,
   sampleDocuments,
 } from "./pdf";
 import { sampleAdapter } from "./sample";
+import VerificationPage, { type VerificationTab } from "./VerificationPage";
+import UploadPage from "./UploadPage";
+import AnswerEditor from "./AnswerEditor";
+import ConversationPage from "./ConversationPage";
+import DraftPreview from "./DraftPreview";
+import ExportPage from "./ExportPage";
+import { useJourney, type Stage } from "./journey";
+import { confirmationKey, handled, interviewComplete, pendingFields } from "./interview";
 const PdfViewer = lazy(() => import("./PdfViewer"));
-type Tab = "Document" | "Review" | "Questions";
-export default function Workspace() {
+type Tab = VerificationTab;
+export default function SessionLayout() {
+  const [darkMode, setDarkMode] = useState(false);
+  useEffect(() => { document.documentElement.dataset.workspaceTheme = darkMode ? "dark" : "light"; return () => { delete document.documentElement.dataset.workspaceTheme; }; }, [darkMode]);
   const session = useSession();
+  const chatRunning = useJourney((s) => s.running);
+  const progress = useJourney((s) => s.progress);
+  const finished = interviewComplete(session.fields, progress);
+  const confirmed = !!session.confirmation && session.confirmation === confirmationKey(session.documents, session.fields, progress);
   const { documents, fields, selected, activeDoc, page, source, mode } =
     session;
   const route = useLocation();
   const navigate = useNavigate();
-  const isSample = route.pathname.endsWith("/sample");
+  const isSample = mode === "sample";
+  const stage: Stage = route.pathname.endsWith("/verification") ? "verification" : route.pathname.endsWith("/export") ? "export" : route.pathname.endsWith("/conversation") || route.pathname.endsWith("/sample") ? "conversation" : "upload";
+  const [previewMode, setPreviewMode] = useState<"draft" | "original">("draft");
+  const [workingEdit, setWorkingEdit] = useState<{ id: string; value: string }>();
   const [tab, setTab] = useState<Tab>("Review");
   const [narrow, setNarrow] = useState(
     () => matchMedia("(max-width: 850px)").matches,
   );
   const pendingFocus = useRef<"Document" | "Review" | null>(null);
-  const viewTabs = useRef<(HTMLButtonElement | null)[]>([]);
   const [unsaved, setUnsaved] = useState(false);
-  const draftChanged = useCallback((dirty: boolean) => {
+  const draftChanged = useCallback((dirty: boolean, value?: string) => {
     setUnsaved(dirty);
+    if (dirty) useSession.getState().invalidateConfirmation();
     const state = useSession.getState();
     const current = state.fields.find((f) => f.id === state.selected);
+    setWorkingEdit(dirty && current && value !== undefined ? { id: current.id, value } : undefined);
     if (dirty && current && (isApproved(current) || current.source))
       state.update(current.id, current.value);
   }, []);
@@ -78,16 +93,13 @@ export default function Workspace() {
     | "clear"
     | "add"
     | "export"
-    | "incomplete"
+    | "confirm"
     | "restore"
     | "switch"
     | "agent"
     | "source"
   >("none");
   const [fieldLabel, setFieldLabel] = useState("");
-  const [exportBytes, setExportBytes] = useState<Uint8Array>();
-  const [exportEpoch, setExportEpoch] = useState(0);
-  const [exportPage, setExportPage] = useState(1);
   const [project, setProject] = useState<SavedProject>();
   const [confirmCopy, setConfirmCopy] = useState(
     "Your current files and answers will be removed from memory. Download a project first if you want to resume later.",
@@ -116,6 +128,23 @@ export default function Workspace() {
     mode === "sample"
       ? sampleAdapter.capabilities
       : getPaperworkAgent().capabilities;
+  useEffect(() => {
+    if (stage !== "upload" && !target && !route.pathname.endsWith("/sample") && !busy) {
+      navigate("/app", { replace: true });
+      setNotice("Open a PDF to begin this session.");
+    }
+    if (target && !["signed", "xfa", "image"].includes(target.support) && stage === "verification" && !interviewComplete(useSession.getState().fields, useJourney.getState().progress)) {
+      navigate("/app/conversation", { replace: true }); setNotice("Finish the interview before checking your answers.");
+    }
+    document.querySelector<HTMLElement>(".stage-heading h1, .chat-title h1")?.focus({ preventScroll: true });
+  }, [route.pathname, target?.id]);
+  useEffect(() => {
+    if (stage === "export" && target && !confirmed) { navigate("/app/verification", { replace: true }); setNotice("Confirm your current information before exporting."); }
+  }, [stage, confirmed, target?.id]);
+  useEffect(() => {
+    setPreviewMode("draft");
+    setWorkingEdit(undefined);
+  }, [selected, target?.id]);
   useEffect(() => {
     const query = matchMedia("(max-width: 850px)");
     const update = () => setNarrow(query.matches);
@@ -149,9 +178,6 @@ export default function Workspace() {
     // A different target is a hard boundary for all document-derived local state.
     sourceJob.current++;
     disposeDownloadUrls();
-    setExportBytes(undefined);
-    setExportEpoch(0);
-    setExportPage(1);
     setProject(undefined);
     setConfirmAction(() => () => {});
     setSourceDoc("");
@@ -184,15 +210,11 @@ export default function Workspace() {
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
   useEffect(() => {
-    if (isSample && !sampleStarted.current) {
+    if (route.pathname.endsWith("/sample") && !sampleStarted.current) {
       sampleStarted.current = true;
       void startSample();
     }
-    if (!isSample) {
-      sampleStarted.current = false;
-      if (mode === "sample") session.clear();
-    }
-  }, [isSample]);
+  }, [route.pathname]);
   useEffect(() => {
     if (!main.current) return;
     const scope = createScope({
@@ -238,6 +260,7 @@ export default function Workspace() {
       setNotice(
         "Fictional sample ready. Start with the suggested name or the address question.",
       );
+      navigate("/app/conversation", { replace: true });
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError"))
         setError(message(e));
@@ -276,12 +299,12 @@ export default function Workspace() {
         return;
       if (role === "target") {
         session.setSession("manual", [parsed[0].doc], parsed[0].fields);
-        if (isSample) navigate("/app");
+        navigate("/app/conversation");
         setTab("Review");
       } else parsed.forEach((p) => session.addDocument(p.doc));
       setNotice(
         role === "target"
-          ? "Document opened. Review and fill the fields manually."
+          ? "Document opened. Let's work through your answers."
           : "Supporting records added.",
       );
     } catch (e) {
@@ -292,7 +315,7 @@ export default function Workspace() {
     }
   }
   const dropzone = useDropzone({
-    onDropAccepted: (files) => void upload(files.slice(0, 1), "target"),
+    onDropAccepted: (files) => target ? requestClear(() => void upload(files.slice(0, 1), "target"), "Opening another form replaces the current documents, conversation and answers.") : void upload(files.slice(0, 1), "target"),
     onDropRejected: () => setError("Choose one PDF, up to 20 MB."),
     accept: { "application/pdf": [".pdf"] },
     maxSize: 20 * 1024 * 1024,
@@ -302,7 +325,9 @@ export default function Workspace() {
   function requestClear(
     action: () => void = () => {
       session.clear();
-      if (isSample) navigate("/app");
+      useJourney.getState().reset();
+      sampleStarted.current = false;
+      navigate("/app");
       setDialog("none");
     },
     description = "Your current files and answers will be removed from memory. Download a project first if you want to resume later.",
@@ -326,6 +351,7 @@ export default function Workspace() {
     pendingFocus.current = "Document";
     session.showSource(s);
     setTab("Document");
+    setPreviewMode("original");
   }
   async function analyze() {
     const adapter = mode === "sample" ? sampleAdapter : getPaperworkAgent();
@@ -363,44 +389,25 @@ export default function Workspace() {
       if (ticket === job.current && alive.current) setBusy("");
     }
   }
-  async function prepareExport() {
-    if (!target) return;
-    const ticket = ++job.current;
-    const epoch = session.epoch;
-    setBusy("Preparing your draft");
-    setError("");
-    try {
-      const bytes = await exportDraft(target, fields);
-      if (
-        ticket !== job.current ||
-        epoch !== useSession.getState().epoch ||
-        !alive.current
-      )
-        return;
-      setExportBytes(bytes);
-      setExportPage(1);
-      setExportEpoch(epoch);
-      setDialog("export");
-    } catch (e) {
-      setError(message(e));
-      setDialog("none");
-    } finally {
-      if (ticket === job.current && alive.current) setBusy("");
-    }
-  }
   function startExport() {
-    if (unsaved) {
-      setNotice("Save your changes before preparing a draft.");
-      return;
+    if (unsaved) { setNotice("Save your changes before continuing."); return; }
+    if (!interviewComplete(useSession.getState().fields, useJourney.getState().progress)) {
+      const pending = pendingFields(useSession.getState().fields, useJourney.getState().progress);
+      setNotice(`Finish ${pending.length} remaining question${pending.length === 1 ? "" : "s"} before confirming your information.`);
+      navigate("/app/conversation"); return;
     }
-    if (fields.some((f) => !isApproved(f))) {
-      setDialog("incomplete");
-    } else void prepareExport();
+    setDialog("confirm");
   }
   function saveProject() {
     if (!target) return;
-    const data = {
-      schemaVersion: 1,
+    if (unsaved || useJourney.getState().running) { setNotice("Save your changes and finish the current reply before downloading a project."); return; }
+      const data = {
+      schemaVersion: 3,
+      progress: useJourney.getState().progress,
+      stage,
+      messages: useJourney.getState().messages,
+      skipped: useJourney.getState().skipped,
+      question: useJourney.getState().question,
       mode,
       documents: documents.map(({ id, name, hash, role }) => ({
         id,
@@ -415,7 +422,7 @@ export default function Workspace() {
       "PapelLess-project.json",
       "application/json",
     );
-    setNotice("Project downloaded. Keep the original PDFs to resume later.");
+    setNotice("Project downloaded with your answers and conversation, but no PDFs. Keep the originals to resume later.");
   }
   async function loadProject(file: File) {
     const ticket = ++job.current;
@@ -480,7 +487,7 @@ export default function Workspace() {
           `Reattach the target PDF named ${originalTarget.name}.`,
         );
       const docs = parsed.map((p) => p.doc);
-      const restored = restoreFields(project, docs, newTarget.fields);
+      const restored = restoreFields(project, docs, newTarget.fields).map((f) => ({ ...f, approval: undefined, state: f.state === "confirmed" ? "user_provided" as const : f.state }));
       if (
         ticket !== job.current ||
         epoch !== useSession.getState().epoch ||
@@ -490,7 +497,16 @@ export default function Workspace() {
       session.setSession(project.mode, docs, restored);
       session.applyAnalysis(restored);
       sampleStarted.current = true;
-      navigate(project.mode === "sample" ? "/app/sample" : "/app");
+      const savedMessages = project.messages ?? [];
+      const savedSkipped = project.skipped ?? [];
+      const identitiesMatch = docs.length === project.documents.length && docs.every((d) => project.documents.some((old) => old.id === d.id && old.hash === d.hash));
+      const safeMessages = savedMessages.map((m) => {
+        const changed = m.sources?.some((s) => !docs.some((d) => d.id === s.documentId && project.documents.some((old) => old.id === d.id && old.hash === d.hash)));
+        return changed ? { ...m, text: `${m.text}\nSource documents changed or are unavailable. Check this reply again.`, sources: m.sources?.filter((s) => docs.some((d) => d.id === s.documentId && project.documents.some((old) => old.id === d.id && old.hash === d.hash))) } : m;
+      });
+      const restoredProgress = identitiesMatch && project.schemaVersion === 3 ? Object.fromEntries(Object.entries(project.progress ?? {}).filter(([id, entry]) => restored.some((f) => f.id === id && f.revision === entry.revision && handled(f, { [id]: entry })))) : {};
+      useJourney.getState().restore(safeMessages, identitiesMatch ? savedSkipped : [], undefined, restoredProgress);
+      navigate(project.stage !== "conversation" && interviewComplete(restored, restoredProgress) ? "/app/verification" : "/app/conversation");
       setDialog("none");
       setNotice(
         docs.every((d) =>
@@ -559,10 +575,10 @@ export default function Workspace() {
   const documentPane = (
     <section
       id="workspace-document"
-      role={narrow ? "tabpanel" : "region"}
-      aria-labelledby={narrow ? "workspace-tab-document" : undefined}
+      role={narrow && stage === "verification" ? "tabpanel" : "region"}
+      aria-labelledby={narrow && stage === "verification" ? "workspace-tab-document" : undefined}
       tabIndex={-1}
-      className={`document-pane mobile-${tab === "Document" ? "visible" : "hidden"}`}
+      className={`document-pane ${stage !== "verification" ? "always-visible" : `mobile-${tab === "Document" ? "visible" : "hidden"}`}`}
       aria-label="Document viewer"
     >
       <div className="pane-heading">
@@ -679,12 +695,10 @@ export default function Workspace() {
           <button
             className={questionView ? "active" : ""}
             onClick={() => {
-              setQuestionView(true);
-              setTab("Questions");
-              setQueueOpen(true);
+              navigate("/app/conversation");
             }}
           >
-            Questions{" "}
+            Ask a question{" "}
             <span>{fields.filter((f) => !f.value && f.question).length}</span>
           </button>
         </div>
@@ -870,7 +884,7 @@ export default function Workspace() {
                     ))}
                 </div>
               )}
-              <FieldEditor
+              <AnswerEditor
                 key={field.id}
                 field={field}
                 onDraftChange={draftChanged}
@@ -910,46 +924,8 @@ export default function Workspace() {
                   Link a supporting passage <Plus size={14} />
                 </button>
               )}
-              <div className="approval-area">
-                <svg
-                  className="reviewed-check"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="m5 12 4 4 10-10"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    fill="none"
-                  />
-                </svg>
-                <p>
-                  {field.source
-                    ? "Read the source and confirm this answer is right for this form."
-                    : "This answer was provided by you. Check it against your records."}
-                </p>
-                <button
-                  className={`button ${isApproved(field) ? "approved-button" : "primary"}`}
-                  disabled={
-                    unsaved ||
-                    !field.value ||
-                    field.state === "conflict" ||
-                    field.kind === "unsupported" ||
-                    isApproved(field)
-                  }
-                  onClick={() => {
-                    session.approve(field.id);
-                    setNotice(`${field.label} reviewed by you.`);
-                  }}
-                >
-                  <Check size={17} />
-                  {isApproved(field)
-                    ? "Reviewed by you"
-                    : "Approve this answer"}
-                </button>
-              </div>
+              {!field.value && !field.required && <button className="button secondary" onClick={() => { useJourney.getState().record(field.id, field.revision, "explicit_blank"); session.invalidateConfirmation(); }}>Confirm leaving this blank</button>}
+              <p className="answer-review-note">You will confirm all the information together when you continue.</p>
             </div>
           )}
         </>
@@ -958,7 +934,7 @@ export default function Workspace() {
   );
   return (
     <div
-      className="workspace"
+      className={`workspace ${darkMode ? "workspace-dark" : "workspace-light"} ${stage === "conversation" && !unsafe ? "workspace-chat" : ""}`}
       onClickCapture={(event) => {
         const button = (event.target as HTMLElement).closest("button");
         if (button && !button.disabled) button.focus({ preventScroll: true });
@@ -968,12 +944,13 @@ export default function Workspace() {
         Skip to workspace
       </a>
       <header className="workspace-header">
-        <Brand />
+        <Brand dark={darkMode} />
         <div className="workspace-title">
           <span>{isSample ? "Sample workspace" : "Your workspace"}</span>
           {isSample && <span className="sample-label">Fictional records</span>}
         </div>
         <div className="workspace-actions">
+          <button className="icon-button theme-toggle" aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"} title={darkMode ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDarkMode((value) => !value)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
           <button
             className="icon-button"
             aria-label="Clear workspace"
@@ -991,15 +968,17 @@ export default function Workspace() {
               <Download size={15} /> Save project
             </button>
           )}
-          <button
-            className="button primary export-action"
-            disabled={!target || !fields.length || !!unsafe || !!busy}
-            onClick={startExport}
-          >
-            Prepare draft <ArrowRight size={16} />
-          </button>
+          {stage !== "conversation" && target && stage !== "upload" && <button className="button primary export-action" disabled={!!unsafe || !!busy || chatRunning} onClick={() => stage === "export" ? navigate("/app/verification") : startExport()}>
+            {stage === "export" ? "Back to verification" : "Continue"} <ArrowRight size={16} />
+          </button>}
         </div>
       </header>
+      <nav className="journey-nav" aria-label="Form progress">
+        {(["upload", "conversation", "verification", "export"] as Stage[]).map((s) => <Link key={s} to={s === "upload" ? "/app" : `/app/${s}`} aria-current={stage === s ? "step" : undefined} onClick={(e) => {
+          if (chatRunning || unsaved) { e.preventDefault(); setNotice(chatRunning ? "Stop the response before changing stages." : "Save your answer before changing stages."); return; }
+          if ((s !== "upload" && !target) || (s === "verification" && !finished && !unsafe) || (s === "export" && !confirmed)) { e.preventDefault(); setNotice(s === "export" ? "Confirm your information in Verification first." : target ? "Finish every required answer and explicitly handle optional questions first." : "Open a PDF first."); }
+        }}>{s === "upload" ? "Upload" : s === "conversation" ? "Conversation" : s === "verification" ? "Verification" : "Export"}</Link>)}
+      </nav>
       <div className="session-strip">
         <span>
           <ShieldCheck size={14} /> Files stay in this session
@@ -1059,123 +1038,23 @@ export default function Workspace() {
         )}
       </div>
       <main id="workspace-main">
-        {target && <h1 className="sr-only">Review your form</h1>}
-        {!target ? (
-          <section className="empty-workspace">
-            <div className="empty-copy">
-              <h1>
-                A fresh page.
-                <br />A clearer next step.
-              </h1>
-              <p>
-                Open your form. Add the details you know.
-                <br />
-                Review it all before preparing your draft.
-              </p>
-            </div>
-            <div className="upload-zone" {...dropzone.getRootProps()}>
-              <input
-                {...dropzone.getInputProps()}
-                aria-label="Upload a form PDF"
-              />
-              <FilePlus2 size={35} />
-              <h2>Bring your form.</h2>
-              <p>Drop a PDF here, or choose a file.</p>
-              <button
-                className="button primary"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  dropzone.open();
-                }}
-                disabled={!!busy}
-              >
-                Choose a PDF <Upload size={17} />
-              </button>
-              <small>Digital PDFs · up to 20 MB · up to 100 pages</small>
-            </div>
-            <div className="empty-options">
-              <button
-                className="text-button"
-                onClick={() => navigate("/app/sample")}
-              >
-                Try the fictional sample <ArrowRight size={16} />
-              </button>
-              <label className="text-button upload-label">
-                <FolderOpen size={16} /> Resume a saved project
-                <input
-                  type="file"
-                  accept="application/json,.json"
-                  onChange={(e) => {
-                    if (e.target.files?.[0])
-                      void loadProject(e.target.files[0]);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-          </section>
+        {target && stage === "verification" && <div className="stage-heading verification-heading"><h1 tabIndex={-1}>Check your answers.</h1><p>Edit the details, inspect the preview, then continue to confirm your information.</p></div>}
+        {!target || stage === "upload" ? (
+          <UploadPage dropzone={dropzone} busy={busy} onSample={() => {
+            sampleStarted.current = false;
+            requestClear(() => { session.clear(); navigate("/app/sample"); }, "Opening the sample replaces this session with fictional records.");
+          }} onProject={(file) => void loadProject(file)} />
+        ) : stage === "conversation" && !unsafe ? (
+          <ConversationPage ready={!busy} documentPane={documentPane} onReview={() => navigate("/app/verification")} onSource={(s) => session.showSource(s)} onAdd={() => { setFieldLabel(""); setDialog("add"); }} />
+        ) : stage === "export" ? (
+          <ExportPage current={confirmed} target={target} fields={fields} documents={documents} revisionKey={session.confirmation ?? ""} onBack={() => navigate("/app/verification")} onProject={saveProject} />
         ) : (
-          <>
-            <div
-              className="mobile-tabs"
-              role="tablist"
-              aria-label="Workspace view"
-            >
-              {(["Document", "Review", "Questions"] as Tab[]).map(
-                (t, index) => (
-                  <button
-                    key={t}
-                    ref={(node) => {
-                      viewTabs.current[index] = node;
-                    }}
-                    id={`workspace-tab-${t.toLowerCase()}`}
-                    aria-controls={
-                      t === "Document"
-                        ? "workspace-document"
-                        : "workspace-review"
-                    }
-                    tabIndex={tab === t ? 0 : -1}
-                    onKeyDown={(event) => {
-                      const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
-                      if (!keys.includes(event.key)) return;
-                      event.preventDefault();
-                      const next =
-                        event.key === "Home"
-                          ? 0
-                          : event.key === "End"
-                            ? 2
-                            : (index + (event.key === "ArrowRight" ? 1 : 2)) %
-                              3;
-                      viewTabs.current[next]?.click();
-                      viewTabs.current[next]?.focus();
-                    }}
-                    role="tab"
-                    aria-selected={tab === t}
-                    onClick={() => {
-                      setTab(t);
-                      setQuestionView(t === "Questions");
-                      setQueueOpen(t === "Questions");
-                    }}
-                  >
-                    {t}
-                  </button>
-                ),
-              )}
-            </div>
-            <div className="desktop-panes">
-              <Group orientation="horizontal" id="workspace-panes">
-                <Panel defaultSize="55%" minSize="35%">
-                  {documentPane}
-                </Panel>
-                <Separator
-                  className="pane-separator"
-                  aria-label="Resize document and review panes"
-                />
-                <Panel minSize="35%">{reviewPane}</Panel>
-              </Group>
-            </div>
-          </>
+          <VerificationPage tab={tab} onTab={(next) => { setTab(next); setQuestionView(false); setQueueOpen(false); }} reviewPane={reviewPane} documentPane={
+                  <div id={previewMode === "draft" && !unsafe ? "workspace-document" : undefined} role={narrow && previewMode === "draft" && !unsafe ? "tabpanel" : undefined} aria-labelledby={narrow && previewMode === "draft" && !unsafe ? "workspace-tab-document" : undefined} tabIndex={-1} className={`verification-document mobile-${tab === "Document" ? "visible" : "hidden"}`}>
+                    {!unsafe && <div className="preview-switch"><button className={previewMode === "draft" ? "active" : ""} onClick={() => setPreviewMode("draft")}>Edited draft</button><button className={previewMode === "original" ? "active" : ""} onClick={() => setPreviewMode("original")}>Original & evidence</button></div>}
+                    {previewMode === "original" || unsafe ? documentPane : <DraftPreview target={target} fields={fields.map((f) => workingEdit?.id === f.id ? { ...f, value: workingEdit.value, state: "user_provided", approval: undefined } : f)} />}
+                  </div>
+          } />
         )}
       </main>
       <div className="workspace-bottom">
@@ -1185,6 +1064,7 @@ export default function Workspace() {
           onClick={() =>
             requestClear(() => {
               session.clear();
+              sampleStarted.current = false;
               navigate(isSample ? "/app" : "/app/sample");
               setDialog("none");
             })
@@ -1253,77 +1133,8 @@ export default function Workspace() {
           </div>
         </form>
       </Modal>
-      <Modal
-        open={dialog === "incomplete"}
-        onOpenChange={(open) => {
-          if (!open) setDialog("none");
-        }}
-        title="Some answers still need review."
-        description="Only reviewed answers will be exported. The remaining entries will be left blank and listed in the draft review."
-      >
-        <p>
-          {fields.filter((f) => !isApproved(f)).length} entries are not
-          reviewed.
-        </p>
-        <div className="modal-actions">
-          <button
-            className="button secondary"
-            onClick={() => setDialog("none")}
-          >
-            Keep reviewing
-          </button>
-          <button
-            className="button primary"
-            disabled={!!busy}
-            onClick={() => void prepareExport()}
-          >
-            Prepare incomplete draft <ArrowRight size={16} />
-          </button>
-        </div>
-      </Modal>
-      <Modal
-        open={dialog === "export"}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDialog("none");
-            setExportBytes(undefined);
-          }
-        }}
-        title="Your draft, ready to read."
-        description="Preview the exact file you will download. It has not been signed or submitted."
-      >
-        {exportBytes && (
-          <div className="export-preview">
-            <Suspense fallback={<p>Opening preview…</p>}>
-              <PdfViewer
-                bytes={exportBytes}
-                page={exportPage}
-                onPage={setExportPage}
-              />
-            </Suspense>
-          </div>
-        )}
-        <div className="modal-actions">
-          <button
-            className="button secondary"
-            onClick={() => {
-              setDialog("none");
-              setExportBytes(undefined);
-            }}
-          >
-            Back to review
-          </button>
-          <button
-            className="button primary"
-            disabled={!exportBytes || exportEpoch !== session.epoch}
-            onClick={() => {
-              download(exportBytes!, "PapelLess-draft.pdf", "application/pdf");
-              setNotice("Draft downloaded. Review it before using it.");
-            }}
-          >
-            <Download size={17} /> Download draft
-          </button>
-        </div>
+      <Modal open={dialog === "confirm"} onOpenChange={(open) => { if (!open) setDialog("none"); }} title="Is all the information correct?" description="Check your answers and the draft preview. Continuing records that you reviewed this information; it does not sign or submit the document.">
+        <div className="modal-actions"><button className="button secondary" onClick={() => setDialog("none")}>No, keep editing</button><button className="button primary" disabled={unsaved || !finished} onClick={() => { if (session.confirmAll()) { setDialog("none"); setNotice(""); navigate("/app/export"); } }}>Yes, continue to export <ArrowRight size={16} /></button></div>
       </Modal>
       <Modal
         open={dialog === "restore"}
@@ -1450,111 +1261,6 @@ export default function Workspace() {
         </form>
       </Modal>
     </div>
-  );
-}
-const answerSchema = z.object({
-  value: z.string().max(20000, "Keep this answer under 20,000 characters."),
-});
-function FieldEditor({
-  field,
-  onSave,
-  onDraftChange,
-  onRequired,
-}: {
-  field: SemanticField;
-  onSave: (value: string) => void;
-  onDraftChange: (dirty: boolean) => void;
-  onRequired: (required: boolean) => void;
-}) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isDirty },
-    reset,
-    watch,
-  } = useForm<{ value: string }>({
-    resolver: zodResolver(answerSchema),
-    defaultValues: { value: field.value },
-  });
-  useEffect(() => reset({ value: field.value }), [field.value, reset]);
-  const value = watch("value");
-  useEffect(() => {
-    onDraftChange(isDirty && value !== field.value);
-  }, [value, field.value, isDirty, onDraftChange]);
-  return (
-    <form
-      className="answer-form"
-      onSubmit={handleSubmit((data) => onSave(data.value))}
-    >
-      {field.id.startsWith("manual:") && (
-        <label className="manual-required">
-          <input
-            type="checkbox"
-            checked={field.required}
-            onChange={(e) => onRequired(e.target.checked)}
-          />{" "}
-          This answer is required
-        </label>
-      )}
-      <label htmlFor="answer-value">
-        Answer{" "}
-        {field.required && <span className="required-label">Required</span>}
-      </label>
-      {field.kind === "unsupported" ? (
-        <p className="error-box">
-          This field type cannot be edited here. Add a separate answer for the
-          review sheet.
-        </p>
-      ) : field.kind === "checkbox" ? (
-        <select id="answer-value" {...register("value")}>
-          <option value="">Choose an answer</option>
-          <option>Yes</option>
-          <option>No</option>
-        </select>
-      ) : field.kind === "radio" || field.kind === "dropdown" ? (
-        <select id="answer-value" {...register("value")}>
-          <option value="">Choose an answer</option>
-          {field.options?.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </select>
-      ) : (
-        <textarea
-          id="answer-value"
-          {...register("value")}
-          rows={field.label.toLowerCase().includes("address") ? 3 : 2}
-          placeholder="Enter your answer"
-          aria-invalid={!!errors.value}
-          aria-describedby={errors.value ? "answer-error" : undefined}
-        />
-      )}{" "}
-      {errors.value && (
-        <p id="answer-error" role="alert">
-          {errors.value.message}
-        </p>
-      )}
-      {isDirty && value !== field.value && (
-        <p className="unsaved-answer" role="status">
-          Unsaved changes. Save this answer before approving or exporting.
-        </p>
-      )}
-      <div className="answer-form-footer">
-        <span>
-          {field.source
-            ? "Source linked"
-            : field.value
-              ? "Provided by you"
-              : "Not answered"}
-        </span>
-        <button
-          className="button secondary"
-          disabled={field.kind === "unsupported" || value === field.value}
-          type="submit"
-        >
-          Save answer <Check size={15} />
-        </button>
-      </div>
-    </form>
   );
 }
 function message(error: unknown) {

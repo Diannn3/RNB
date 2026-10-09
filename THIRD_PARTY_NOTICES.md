@@ -43,3 +43,7 @@ Plus Jakarta Sans: locally served interface WOFF2 via Fontsource and variable TT
 PDF.js CMaps, standard fonts and WASM are copied from the installed renderer dependency. Their upstream license files remain beside the assets. PDF worker is built from that same dependency version.
 
 GSAP uses its Standard License, not MIT. React Bits and Magic UI informed research only; no component source was copied. No Motion or Three.js dependency was added.
+
+## Conversational interview addition
+
+`docx` 9.9.0 (MIT) is loaded only when Word export is selected. Its locked transitive packages remain in package-lock.json. Typebot (FSL), SPACE10 Conversational Form, assistant-ui, Vercel Chatbot and React Chatbot Kit were workflow references only; no source was copied and none was installed.

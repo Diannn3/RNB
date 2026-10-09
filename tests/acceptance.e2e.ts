@@ -1,35 +1,37 @@
 import { test, expect } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { start, complete } from "./helpers";
 test("mobile tabs and source reveal preserve keyboard focus", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/app/sample");
-  const review = page.getByRole("tab", { name: "Review", exact: true });
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await complete(page);
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
+  const review = page.getByRole("tab", { name: "Answers", exact: true });
   await expect(review).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".review-detail h2")).toHaveText("Full name");
   await review.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("tab", { name: "Questions" })).toBeFocused();
-  await expect(
-    page.getByRole("tabpanel", { name: "Questions", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Preview", exact: true })).toBeFocused();
   await page.keyboard.press("Home");
   await expect(
-    page.getByRole("tab", { name: "Document", exact: true }),
+    page.getByRole("tab", { name: "Preview", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await page
     .getByRole("button", { name: "Show in document", exact: true })
     .click();
   await expect(
-    page.getByRole("tabpanel", { name: "Document", exact: true }),
+    page.getByRole("tabpanel", { name: "Preview", exact: true }),
   ).toBeFocused();
   await expect(page.getByLabel("Active document")).toHaveValue("sample-record");
-  await page.getByRole("tab", { name: "Review", exact: true }).click();
+  await page.getByRole("tab", { name: "Answers", exact: true }).click();
   await page.getByRole("button", { name: "Choose a field" }).click();
   await page
-    .getByRole("button", { name: "Email address Needs your answer" })
+    .getByRole("button", { name: "Email address alex@example.com" })
     .click();
   await expect(page.locator(".review-detail h2")).toBeFocused();
 });
@@ -37,6 +39,10 @@ test("keyboard separator resize and citation geometry across zoom and rotation",
   page,
 }) => {
   await page.goto("/app/sample");
+  await expect(page).toHaveURL(/app\/conversation$/);
+  await complete(page);
+  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
+  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
   await expect(page.locator(".review-detail h2")).toHaveText("Full name");
   const separator = page.getByRole("separator", {
     name: "Resize document and review panes",
@@ -81,49 +87,10 @@ test("keyboard separator resize and citation geometry across zoom and rotation",
     await aligned();
   }
 });
-test("unsaved edits invalidate review immediately and block stale export", async ({
-  page,
-}) => {
-  await page.goto("/app/sample");
-  await expect(page.locator(".review-detail h2")).toHaveText("Full name");
-  await page.getByRole("button", { name: "Approve this answer" }).click();
-  await expect(page.getByText("1 of 4 reviewed")).toBeVisible();
-  await page.getByLabel("Answer Required").fill("Unsaved correction");
-  await expect(page.getByText("0 of 4 reviewed")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Approve this answer" }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Prepare draft" }).click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-  await expect(
-    page.getByText("Save your changes before preparing a draft."),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Save answer", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Approve this answer" }),
-  ).toBeEnabled();
-  await expect(page.locator('.notice[role="status"]')).toContainText(
-    "Answer saved",
-  );
-});
-test("manually added answers allow explicit required marking", async ({
-  page,
-}) => {
-  const pdf = await PDFDocument.create();
-  const p = pdf.addPage();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  p.drawText("Plain form", { x: 50, y: 750, font });
-  await page.goto("/app");
-  await page
-    .getByLabel("Upload a form PDF")
-    .setInputFiles({
-      name: "plain.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from(await pdf.save()),
-    });
-  await page.getByRole("button", { name: "Add an answer" }).click();
-  await page.getByLabel("Field name").fill("Applicant");
-  await page.getByRole("button", { name: "Add answer", exact: true }).click();
-  await page.getByLabel("This answer is required").check();
-  await expect(page.getByLabel("Answer Required")).toBeVisible();
+
+test("clearing a required answer blocks confirmation and optional blanks require explicit disposition", async ({page}) => {
+ await start(page); await complete(page);
+ await page.getByLabel("Answer Required").fill("");await page.getByRole("button",{name:"Save answer",exact:true}).click();await page.getByRole("button",{name:"Continue",exact:true}).click();await expect(page).toHaveURL(/conversation$/);await expect(page.getByRole("button",{name:"Review my answers",exact:true})).toHaveCount(0);
+ await page.getByLabel("Message",{exact:true}).fill("Corrected name");await page.getByRole("button",{name:"Send message",exact:true}).click();await page.getByRole("button",{name:"Review my answers",exact:true}).click();
+ await page.getByRole("button",{name:"Choose a field",exact:true}).click();await page.getByRole("button",{name:"Preferred contact Email",exact:true}).click();await page.getByLabel("Answer",{exact:true}).fill("");await page.getByRole("button",{name:"Save answer",exact:true}).click();await expect(page.getByRole("button",{name:"Confirm leaving this blank",exact:true})).toBeVisible();await page.getByRole("button",{name:"Confirm leaving this blank",exact:true}).click();await page.getByRole("button",{name:"Continue",exact:true}).click();await expect(page.getByRole("dialog")).toContainText("Is all the information correct?");
 });

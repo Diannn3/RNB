@@ -1,4 +1,16 @@
-import type { PaperworkAgentAdapter, SemanticField } from "./domain";
+import type { PaperworkAgentAdapter, SemanticField, InterviewTurnInput, InterviewTurnResult } from "./domain";
+export async function sampleTurn(input: InterviewTurnInput, signal: AbortSignal): Promise<InterviewTurnResult> {
+  if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
+  const text = input.text.toLowerCase();
+  const address = /address|residen|live/.test(text);
+  const name = /name|who/.test(text);
+  const source = address ? { documentId: "sample-letter", page: 1, quote: "Present address: 42 Mabini Street, Los Banos" } : name ? { documentId: "sample-record", page: 1, quote: "Full name: Alex Reyes" } : undefined;
+  return { documentHash: input.target.hash, analysisRevision: input.analysisRevision, message: {
+    id: crypto.randomUUID(), role: "assistant",
+    text: address ? "The fictional student record lists a permanent address, while the residence letter lists the present address. Both can be true. This form asks where you live now; choose the record that applies before reviewing the answer." : name ? "The fictional student record names Alex Reyes. Check that this is the person completing the application before approving it." : "This is a deterministic sample, not a live model. I can explain the sample's name or address evidence. The email is missing from these records and must be supplied by you.",
+    sources: source && input.supporting.some((d) => d.id === source.documentId) ? [source] : undefined,
+  } };
+}
 export const sampleAdapter: PaperworkAgentAdapter = {
   capabilities: { analysis: true, model: "sample", route: "sample" },
   async analyze({ target, supporting }, signal) {

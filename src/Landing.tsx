@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
   ArrowRight,
@@ -6,12 +6,14 @@ import {
   Check,
   FileText,
   ShieldCheck,
+  Clock3,
 } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Flip } from "gsap/Flip";
 import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
+import SignatureSequence from "./SignatureSequence";
 import { Brand, Evidence, PaperPreview } from "./components";
 gsap.registerPlugin(ScrollTrigger, Flip, SplitText, useGSAP);
 export default function Landing() {
@@ -32,47 +34,19 @@ export default function Landing() {
           onSplit: (self) =>
             gsap.from(self.lines, {
               yPercent: 105,
-              duration: 1.05,
-              stagger: 0.13,
+              duration: 0.55,
+              stagger: 0.08,
               ease: "expo.out",
               clearProps: "transform",
             }),
         });
         gsap.from(".hero-art", {
-          y: 38,
-          rotate: 3,
-          duration: 1.25,
+          y: 12,
+          duration: 0.65,
           ease: "expo.out",
+          clearProps: "transform",
         });
-        const desktop = gsap.matchMedia();
-        desktop.add("(min-width: 1024px)", () => {
-          gsap
-            .timeline({
-              scrollTrigger: {
-                trigger: ".signature",
-                start: "top top",
-                end: "+=950",
-                scrub: 1,
-                pin: ".signature-inner",
-              },
-            })
-            .to(".signature-paper", { xPercent: -9, rotate: -5, duration: 1 })
-            .fromTo(
-              ".signature-evidence",
-              { clipPath: "inset(0 100% 0 0)" },
-              { clipPath: "inset(0 0% 0 0)", duration: 1 },
-            )
-            .to(".signature-line", { strokeDashoffset: 0, duration: 1 })
-            .fromTo(
-              ".signature-approval",
-              { scale: 0.92 },
-              { scale: 1, duration: 0.5 },
-            );
-        });
-        return () => {
-          split.revert();
-          desktop.revert();
-        };
+        return () => split.revert();
       });
       return () => mm.revert();
     },
@@ -114,7 +88,8 @@ export default function Landing() {
         Skip to content
       </a>
       <header className="site-header">
-        <Brand dark />
+        <LandingGrid />
+        <Brand />
         <nav aria-label="Main navigation">
           <a href="#how-it-works">How it works</a>
           <Link to="/app" className="nav-launch">
@@ -124,52 +99,52 @@ export default function Landing() {
       </header>
       <main id="main">
         <section className="hero">
+          <LandingGrid />
           <div className="hero-copy">
             <h1>
               Make sense <br />
               of forms.
             </h1>
             <p>
-              Your documents hold the answers.
-              <br />
-              Bring them together. Review every detail.
-              <br />
+              Your documents hold the answers. Bring them together. Review every detail.
               Leave with a draft that makes sense.
             </p>
             <div className="hero-actions">
-              <Link to="/app" className="button light">
-                Start with a form <ArrowRight size={19} />
+              <Link to="/app/sample" className="button hero-primary">
+                Try the sample <ArrowRight size={19} aria-hidden="true" />
               </Link>
-              <Link to="/app/sample" className="button ghost">
-                Try the sample
+              <Link to="/app" className="button hero-secondary">
+                Start with a form
               </Link>
             </div>
             <span className="hero-footnote">
-              Your documents stay in this browser session.
+              <span>Fictional sample. Real PDFs use manual editing.</span>
+              <span>Your documents stay in this browser session.</span>
             </span>
           </div>
-          <div className="hero-art">
-            <div className="hero-record">
-              <span>
-                <FileText size={15} /> Student record
-              </span>
-              <p>Full name</p>
-              <strong>Alex Reyes</strong>
-              <div className="record-line" />
-              <small>Fictional sample</small>
-            </div>
+          <div className="hero-art" role="group" aria-label="Fictional preview: form, supporting record, and pending review">
             <div className="hero-paper">
               <PaperPreview />
             </div>
-            <div className="hero-review">
-              <span className="review-icon">
-                <Check size={19} />
-              </span>
-              <div>
-                <strong>Alex Reyes</strong>
-                <span>Ready for your review</span>
+            <div className="hero-context">
+              <div className="hero-record">
+                <span>
+                  <FileText size={16} aria-hidden="true" /> Student record.pdf
+                </span>
+                <p>Supporting passage</p>
+                <blockquote>Full name: Alex Reyes</blockquote>
+                <div className="record-line" />
+                <small>Fictional sample. Page 1.</small>
               </div>
-              <ArrowRight size={19} />
+              <div className="hero-review">
+                <span className="review-icon" aria-hidden="true">
+                  <Clock3 size={20} />
+                </span>
+                <div>
+                  <strong>Alex Reyes</strong>
+                  <span>Ready for your review</span>
+                </div>
+              </div>
             </div>
           </div>
           <a href="#how-it-works" className="scroll-cue">
@@ -177,53 +152,9 @@ export default function Landing() {
             <span>Follow an answer</span>
           </a>
         </section>
-        <section className="signature" id="how-it-works">
-          <div className="signature-inner">
-            <div className="signature-copy">
-              <h2>
-                Every answer
-                <br />
-                has a story.
-              </h2>
-              <p>
-                Follow it back to the source.
-                <br />
-                See what fits. Decide what belongs.
-              </p>
-              <Link to="/app/sample" className="text-button">
-                Explore the sample <ArrowRight size={17} />
-              </Link>
-            </div>
-            <div className="signature-stage">
-              <div className="signature-paper">
-                <PaperPreview compact />
-              </div>
-              <svg
-                className="signature-connector"
-                viewBox="0 0 550 420"
-                aria-hidden="true"
-              >
-                <path
-                  className="signature-line"
-                  d="M90 220 H300 Q320 220 320 240 V290 H485"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeDasharray="600"
-                  strokeDashoffset="600"
-                />
-              </svg>
-              <div className="signature-evidence">
-                <Evidence quote="Full name: Alex Reyes" />
-                <div className="signature-approval">
-                  <Check size={18} />
-                  <span>Reviewed by you</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <SignatureSequence />
         <section className="interactive-section">
+          <LandingGrid />
           <div className="section-heading">
             <h2>
               A little clarity.
@@ -317,6 +248,7 @@ export default function Landing() {
           </div>
         </section>
         <section className="closing">
+          <LandingGrid dark />
           <div className="closing-copy">
             <h2>
               Less paperwork.
@@ -345,6 +277,7 @@ export default function Landing() {
         </section>
       </main>
       <footer>
+        <LandingGrid dark />
         <Brand dark />
         <span>Prepared by PapelLess. Reviewed by you.</span>
         <a href="#main">
@@ -352,6 +285,19 @@ export default function Landing() {
         </a>
       </footer>
     </div>
+  );
+}
+function LandingGrid({ dark = false }: { dark?: boolean }) {
+  const patternId = `landing-grid-${useId().replace(/:/g, "")}`;
+  return (
+    <svg className={`landing-grid${dark ? " landing-grid-dark" : ""}`} width="100%" height="100%" aria-hidden="true" focusable="false">
+      <defs>
+        <pattern id={patternId} width="48" height="48" patternUnits="userSpaceOnUse">
+          <path d="M48 0H0V48" fill="none" stroke="currentColor" strokeWidth="1" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+    </svg>
   );
 }
 function ArrowUpRightIcon() {

@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { useJourney } from "./journey";
+import { confirmationKey, interviewComplete, validAnswer } from "./interview";
 import {
   changeField,
   approveField,
@@ -18,6 +20,9 @@ interface Session {
   epoch: number;
   analysisRevision?: string;
   dirty: boolean;
+  confirmation?: string;
+  invalidateConfirmation: () => void;
+  confirmAll: () => boolean;
   setSession: (
     mode: Session["mode"],
     docs: DocumentRef[],
@@ -36,7 +41,7 @@ interface Session {
   clear: () => void;
   applyAnalysis: (fields: SemanticField[], revision?: string) => void;
 }
-export const useSession = create<Session>((set) => ({
+export const useSession = create<Session>((set, get) => ({
   mode: "manual",
   documents: [],
   fields: [],
@@ -45,7 +50,17 @@ export const useSession = create<Session>((set) => ({
   page: 1,
   epoch: 0,
   dirty: false,
-  setSession: (mode, documents, fields) =>
+  invalidateConfirmation: () => set({ confirmation: undefined }),
+  confirmAll: () => {
+    const current = get(); const progress = useJourney.getState().progress;
+    if (!interviewComplete(current.fields, progress)) return false;
+    const reviewedAt = new Date().toISOString();
+    const fields = current.fields.map((f) => f.kind === "unsupported" ? f : ({ ...f, state: f.value ? "confirmed" as const : "not_applicable" as const, approval: { revision: f.revision, reviewedAt } }));
+    set({ fields, confirmation: confirmationKey(current.documents, fields, progress), epoch: current.epoch + 1, dirty: true });
+    return true;
+  },
+  setSession: (mode, documents, fields) => {
+    useJourney.getState().reset();
     set((s) => ({
       mode,
       documents,
@@ -57,27 +72,36 @@ export const useSession = create<Session>((set) => ({
       analysisRevision: undefined,
       epoch: s.epoch + 1,
       dirty: false,
-    })),
+      confirmation: undefined,
+    }));
+  },
   update: (id, value, source) =>
-    set((s) => ({
-      fields: s.fields.map((f) =>
-        f.id === id ? changeField(f, value, source) : f,
-      ),
+    set((s) => {
+      const fields = s.fields.map((f) => f.id === id ? changeField(f, value, source) : f);
+      const changed = fields.find((f) => f.id === id);
+      const journey = useJourney.getState();
+      if (changed && journey.progress[id] && validAnswer(changed, value)) journey.record(id, changed.revision, "answered");
+      else journey.reopen([id]);
+      return ({
+      fields,
+      confirmation: undefined,
       dirty: true,
       epoch: s.epoch + 1,
-    })),
+    }); }),
   markRequired: (id, required) =>
     set((s) => ({
       fields: s.fields.map((f) =>
         f.id === id ? { ...changeField(f, f.value, f.source), required } : f,
       ),
       dirty: true,
+      confirmation: undefined,
       epoch: s.epoch + 1,
     })),
   approve: (id) =>
     set((s) => ({
       fields: s.fields.map((f) => (f.id === id ? approveField(f) : f)),
       dirty: true,
+      confirmation: undefined,
       epoch: s.epoch + 1,
     })),
   select: (id) => set({ selected: id }),
@@ -89,6 +113,8 @@ export const useSession = create<Session>((set) => ({
     set((s) => {
       const doc = s.documents.find((d) => d.id === id);
       if (doc?.role === "target")
+        useJourney.getState().reset();
+      if (doc?.role === "target")
         return {
           documents: [],
           fields: [],
@@ -99,6 +125,7 @@ export const useSession = create<Session>((set) => ({
           mode: "manual",
           analysisRevision: undefined,
           dirty: false,
+          confirmation: undefined,
           epoch: s.epoch + 1,
         };
       return {
@@ -111,12 +138,14 @@ export const useSession = create<Session>((set) => ({
         source: undefined,
         page: 1,
         dirty: true,
+        confirmation: undefined,
         epoch: s.epoch + 1,
       };
     }),
   addDocument: (doc) =>
     set((s) => ({
       documents: [...s.documents, doc],
+      confirmation: undefined,
       dirty: true,
       epoch: s.epoch + 1,
     })),
@@ -138,10 +167,12 @@ export const useSession = create<Session>((set) => ({
         ],
         selected: id,
         dirty: true,
+        confirmation: undefined,
         epoch: s.epoch + 1,
       };
     }),
-  clear: () =>
+  clear: () => {
+    useJourney.getState().reset();
     set((s) => ({
       mode: "manual",
       documents: [],
@@ -152,14 +183,18 @@ export const useSession = create<Session>((set) => ({
       source: undefined,
       analysisRevision: undefined,
       dirty: false,
+      confirmation: undefined,
       epoch: s.epoch + 1,
-    })),
-  applyAnalysis: (fields, analysisRevision) =>
+    }));
+  },
+  applyAnalysis: (fields, analysisRevision) => {
+    useJourney.getState().reopen(fields.map((f) => f.id));
     set((s) => ({
       fields,
+      confirmation: undefined,
       analysisRevision,
       selected: fields[0]?.id ?? null,
       dirty: true,
       epoch: s.epoch + 1,
-    })),
+    })); },
 }));

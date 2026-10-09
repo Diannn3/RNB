@@ -65,16 +65,53 @@ export interface AnalysisResult {
   analysisRevision: string;
   fields: SemanticField[];
 }
+export interface ConversationMessage {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  sources?: SourceSpan[];
+  fieldId?: string;
+  fieldRevision?: number;
+  purpose?: "question" | "answer" | "completion" | "reply";
+}
+export interface AnswerProposal {
+  fieldId: string;
+  expectedRevision: number;
+  value: string;
+  source?: SourceSpan;
+}
+export interface InterviewTurnInput {
+  requestId: string;
+  epoch: number;
+  target: DocumentRef;
+  supporting: DocumentRef[];
+  analysisRevision?: string;
+  fields: SemanticField[];
+  messages: ConversationMessage[];
+  questionId?: string;
+  text: string;
+}
+export interface InterviewTurnResult {
+  documentHash: string;
+  analysisRevision?: string;
+  message: ConversationMessage;
+  proposals?: AnswerProposal[];
+  question?: InterviewQuestion;
+  intent?: "answer" | "pdf_question" | "clarification";
+  answer?: { fieldId: string; expectedRevision: number; value: string; source?: SourceSpan };
+}
 export interface PaperworkAgentAdapter {
   capabilities: {
     analysis: boolean;
     model: "sample" | "unavailable" | "ready";
     route: "sample" | "none" | "local";
+    conversation?: boolean;
   };
   analyze(
     input: { target: DocumentRef; supporting: DocumentRef[] },
     signal: AbortSignal,
   ): Promise<AnalysisResult>;
+  turn?(input: InterviewTurnInput, signal: AbortSignal): Promise<InterviewTurnResult>;
 }
 export const unavailableAdapter: PaperworkAgentAdapter = {
   capabilities: { analysis: false, model: "unavailable", route: "none" },
@@ -120,7 +157,7 @@ export function approveField(field: SemanticField): SemanticField {
   };
 }
 export const isApproved = (field: SemanticField) =>
-  field.state === "confirmed" && field.approval?.revision === field.revision;
+  (field.state === "confirmed" || (field.state === "not_applicable" && !field.required && !field.value)) && field.approval?.revision === field.revision;
 export function invalidateSource(
   field: SemanticField,
   id: string,
@@ -148,6 +185,29 @@ export const sourceSchema = z.object({
     .array(z.tuple([z.number(), z.number(), z.number(), z.number()]))
     .max(100)
     .optional(),
+});
+export const messageSchema = z.object({
+  id: z.string().min(1).max(200),
+  role: z.enum(["user", "assistant"]),
+  text: z.string().max(20000),
+  sources: z.array(sourceSchema).max(20).optional(),
+  fieldId: z.string().max(500).optional(),
+  fieldRevision: z.number().int().nonnegative().optional(),
+  purpose: z.enum(["question", "answer", "completion", "reply"]).optional(),
+});
+export const turnSchema = z.object({
+  documentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  analysisRevision: z.string().min(1).max(200).optional(),
+  message: messageSchema.extend({ role: z.literal("assistant") }),
+  intent: z.enum(["answer", "pdf_question", "clarification"]).optional(),
+  answer: z.object({ fieldId: z.string().max(500), expectedRevision: z.number().int().nonnegative(), value: z.string().max(20000), source: sourceSchema.optional() }).optional(),
+  proposals: z.array(z.object({
+    fieldId: z.string().min(1).max(500),
+    expectedRevision: z.number().int().nonnegative(),
+    value: z.string().max(20000),
+    source: sourceSchema.optional(),
+  })).max(100).optional(),
+  question: z.object({ fieldId: z.string().max(500), prompt: z.string().max(2000) }).optional(),
 });
 const savedField = z.object({
   id: z.string().min(1).max(500),
@@ -193,7 +253,12 @@ const savedField = z.object({
 });
 export const projectSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    stage: z.enum(["upload", "conversation", "verification", "export"]).optional(),
+    messages: z.array(messageSchema).max(500).optional(),
+    skipped: z.array(z.string().max(500)).max(1000).optional(),
+    progress: z.record(z.string().max(500), z.object({ revision: z.number().int().nonnegative(), status: z.enum(["answered", "explicit_blank"]) })).optional(),
+    question: z.object({ fieldId: z.string().max(500), prompt: z.string().max(2000) }).optional(),
     mode: z.enum(["manual", "sample"]),
     documents: z
       .array(
