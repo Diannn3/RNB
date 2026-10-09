@@ -22,7 +22,7 @@ def render_pdf(content, page_index=0):
             page.close()
 
 
-def check_forms(forms, defaults, client, post):
+def check_forms(forms, defaults, client, post, artifacts):
     for selected in defaults:
         source = forms / selected['path']
         original = source.read_bytes()
@@ -107,6 +107,12 @@ def check_forms(forms, defaults, client, post):
         preview.raise_for_status()
         assert preview.headers['content-type'] == 'image/png'
         assert preview.content.startswith(b'\x89PNG\r\n\x1a\n')
+        artifacts.mkdir(parents=True, exist_ok=True)
+        pdf_path = artifacts / f"{selected['agency']}-DRAFT.pdf"
+        preview_path = artifacts / f"{selected['agency']}-preview.png"
+        pdf_path.write_bytes(export.content)
+        preview_path.write_bytes(preview.content)
+        print(f'PDF: {pdf_path}; preview: {preview_path}', flush=True)
         print(f"PASS: {selected['agency']} real-model conversation, sourced explanation, "
               "synthetic values in PDF, unchanged source/protected regions, preview and DRAFT.",
               flush=True)

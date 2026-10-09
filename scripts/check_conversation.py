@@ -81,7 +81,8 @@ def check_conversation():
                 response.raise_for_status()
                 return response.json()
 
-            check_forms(forms, defaults, client, post)
+            check_forms(forms, defaults, client, post,
+                        runtime / 'benchmarks' / f'{MODEL}-government-flow-drafts')
     finally:
         try:
             with httpx.Client(timeout=10) as client:

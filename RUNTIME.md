@@ -190,10 +190,10 @@ This opt-in integration test starts the actual CUDA model and API on temporary
 localhost ports, then stops both. It needs the provisioned runtime, virtualenv
 and an available NVIDIA GPU; it does not use mocks or reference maps.
 It reads `skills/government-form-assistant/assets/forms/defaults.json` and uploads
-each official DSWD, SSS, and PhilHealth default. It checks an agency explanation,
-asks applicant questions, supplies synthetic names/contact information, and skips
+each official DSWD and SSS default. PhilHealth is no longer an active flow.
+It checks an agency explanation, asks applicant questions, supplies synthetic names/contact information, and skips
 other answers. It verifies supplied values in each draft, unchanged sources and
-protected regions on every page, PNG preview, and DRAFT filename. Artifacts are temporary.
+protected regions on every page, PNG preview, and DRAFT filename. API workspaces are temporary; verified PDFs and previews are retained in `.runtime/benchmarks/{MODEL}-government-flow-drafts/`.
 
 The test prints conversation turns, API turn latency and generation throughput
 from llama.cpp counters (output tokens divided by generation seconds, excluding
@@ -209,10 +209,49 @@ DSWD, SSS, and PhilHealth with synthetic values and unchanged source hashes.
 DSWD interleaved bilingual OCR now locks the administrative header and staff
 section using actual printed boundary evidence.
 
-CUDA end-to-end acceptance is still unverified: the attempted Qwen startup
-exited before API/form turns. An existing LFM CUDA server on port 8081 was using
-the GPU and was left untouched. CPU inference is not permitted and provides no
-acceptance evidence; do not substitute CPU execution for the CUDA workflow.
+Historical pre-cutover CUDA attempt: Qwen exited before API/form turns while an
+existing LFM CUDA server occupied the GPU. That server was left untouched.
+CPU inference is not permitted and provides no CUDA acceptance evidence.
+
+## Source-slot identity verification
+
+Mapping `id`, stored answers, direct edit keys, pending/answered state and
+`missing_fields` now use extracted document-local source-slot IDs. Semantic names
+and display labels remain metadata and may repeat. Conflicts are grouped by
+semantic meaning, but clarification and resolution are scoped to document/slot;
+one answer cannot populate or resolve another slot. Geometry, protected-region,
+option, overflow, source-hash and verified-write gates remain in force.
+
+The 31 regression tests passed, including independent duplicate-name widget and
+overlay values, skipped-slot blanks, direct edits and per-slot/document conflicts.
+PhilHealth was removed from the active demo manifest; its historical PDFs remain
+technical-only fixtures. The synthetic harness selects answers using semantic
+names/display labels but checks each extracted slot's type before supplying text.
+Its outer API timeout is 600 seconds for multi-batch mapping; inference request
+timeouts remain 240 seconds.
+
+Liquid followed by Qwen completed both active CUDA government flows sequentially,
+with 8,192 context tokens and 99 GPU layers. Liquid used the configured 32-token
+reasoning allowance; Qwen reasoning was disabled (budget 0).
+DSWD and SSS passed sourced explanations, synthetic values in exported PDFs,
+unchanged source hashes and protected-region pixels, PNG previews and DRAFT names.
+
+| Model | DSWD first turn (s) | SSS first turn (s) | Total run (s) | Generated tokens/s |
+|---|---:|---:|---:|---:|
+| Liquid LFM2.5-2.6B Q4_K_M | 34.33 | 150.27 | 204.32 | 56.20 |
+| Qwen3.5-4B Q4_K_M | 83.27 | 379.50 | 536.61 | 31.09 |
+
+First turns include full-document mapping and the first question. Throughput
+excludes prompt processing. Full synthetic transcripts and counters are in
+`.runtime/benchmarks/{MODEL}-government-flow.json`.
+
+The initial successful runs cleaned up their temporary exports before PDF
+retention was requested. Their viewable PDF/preview copies were regenerated from
+the recorded source-slot IDs and synthetic answers without rerunning inference.
+The production PDF writer verified the values; source hashes and protected-region
+pixels were checked unchanged. These copies are replays, not the deleted original
+temporary artifacts. Future runs retain the actual verified exports and previews.
+
 
 ## Non-AI verification
 
