@@ -501,8 +501,8 @@ def _fit_history(history, tools, reserve):
         del history[user_indices[0]:user_indices[1]]
 
 
-def run_tools(messages, handlers, scope):
-    """Handlers map names to (callable, Pydantic output type); scope contains ID sets."""
+def run_tools(messages, handlers, scope, *, final_model=None, validate_final=None):
+    """Run scoped tools, optionally validating a typed final answer with the shared retry."""
     with _LOCK:
         tools = _tool_schemas(handlers, scope)
         history = [{"role": "system", "content": SYSTEM + "\nUse only the listed tools."}]
@@ -515,6 +515,10 @@ def run_tools(messages, handlers, scope):
                 history[0]["content"] += "\n" + message["content"]
             else:
                 history.append(dict(message))
+        if final_model is not None:
+            history[0]["content"] += (
+                "\nFor your final answer, return only JSON matching this schema:\n"
+                + _dump(final_model.model_json_schema()))
         retry_used = False
         rounds = 0
         while True:
@@ -529,9 +533,25 @@ def run_tools(messages, handlers, scope):
                 history[0]["content"] += "\nRetry: use only valid tools with exact scoped IDs."
                 continue
             if not calls:
-                if not isinstance(message.get("content"), str) or not message["content"].strip():
-                    raise InferenceError("Local model returned an empty assistant message")
-                return {"role": "assistant", "content": message["content"]}
+                if final_model is None:
+                    if not isinstance(message.get("content"), str) or not message["content"].strip():
+                        raise InferenceError("Local model returned an empty assistant message")
+                    return {"role": "assistant", "content": message["content"]}
+                message = _complete(history, reserve=1024, schema=final_model.model_json_schema())
+                try:
+                    content = message.get("content")
+                    if not isinstance(content, str) or not content.strip():
+                        raise ValueError("Empty assistant message")
+                    result = final_model.model_validate_json(content)
+                    return validate_final(result) if validate_final else result
+                except (ValidationError, ValueError, TypeError, InferenceError):
+                    if retry_used:
+                        raise InferenceError("Local model returned an invalid final answer") from None
+                    retry_used = True
+                    history[0]["content"] += (
+                        "\nRetry: return valid final JSON grounded only in retrieved evidence; "
+                        "use the search tool before completing an explanation.")
+                    continue
             if rounds == 3:
                 raise InferenceError("Local inference exceeded three tool rounds")
             rounds += 1
