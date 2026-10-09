@@ -83,7 +83,7 @@ def check_backend():
                 assert covered['status'] == 'completed' and covered['citations'][0]['feed'] == agency
             assert post(prefix + '/explanations', json={'query': 'quantum healing'})['status'] == 'abstained'
             invalid = client.post(BASE + prefix + '/drafts', json={'document_id': document,
-                'values': {'agency_signature': 'forbidden'}})
+                'values': {protected[0]['id']: 'forbidden'}})
             assert invalid.status_code == 422
             invalid = client.post(BASE + prefix + '/documents', files={'file': ('bad.pdf', b'not a PDF')})
             assert invalid.status_code == 422
@@ -99,7 +99,7 @@ def check_backend():
                 if turn['status'] == 'completed':
                     break
                 assert turn['status'] == 'needs_input'
-                value = '2000-01-02' if 'birth' in turn['field'] or 'date' in turn['field'] else 'Synthetic Ada'
+                value = '2000-01-02' if 'birth' in turn['name'] or 'date' in turn['name'] else 'Synthetic Ada'
                 supplied.append(value)
                 turn = post(complete_prefix + '/messages', json={'answer': value})
             assert turn['status'] == 'completed' and not turn['missing_fields'], turn

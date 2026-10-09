@@ -24,7 +24,7 @@ Run inference and document processing locally. Select `PAPELLESS_MODEL_PROFILE=l
 
 1. Create a workspace and upload a PDF.
 2. Extract text, widgets, page layout, and OCR where needed.
-3. LFM maps extracted fields to logical form fields.
+3. LFM maps extracted source slots to semantic names and display labels as metadata; document-local source IDs identify storage, questions, edits, and missing fields, even when names repeat.
 4. Ask one natural-language question per turn for missing applicant-answerable values.
 5. Validate the mapping and supplied values, fill a copy, reopen and render it.
 6. Automatically export a complete or partial PDF with a `DRAFT` filename suffix.
@@ -37,7 +37,7 @@ Look up a phrase in the bundled official-source DSWD, SSS, and PhilHealth servic
 
 ### Cross-document comparison
 
-Compare source-linked identities, relationships, dates, and numeric values across documents in a workspace. Ask once about a conflict; if unresolved, leave the affected field blank and export the remaining fields. Do not silently choose between conflicting facts.
+Compare source-linked identities, relationships, dates, and numeric values across documents in a workspace. Group evidence by semantic name, but ask once per affected document/source slot; a resolution never populates or resolves another slot. If unresolved, leave the affected slot blank and export the remaining fields. Do not silently choose between conflicting facts.
 
 ## 3. Backend layout and storage
 

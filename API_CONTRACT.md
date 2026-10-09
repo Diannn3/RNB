@@ -82,10 +82,12 @@ The backend asks about missing applicant-editable mapped fields, including optio
 Needs-input response example:
 
 ```json
-{"request_id":"opaque-id","status":"needs_input","assistant_message":"What is the member's name?","field":"member_name"}
+{"request_id":"opaque-id","status":"needs_input","assistant_message":"What is the member's name?","field":"p0-w0","name":"member_name","label":"Member name"}
 ```
+`field` is the extracted source-slot ID, unique within the selected document. Mapping `id`, answer storage, direct edit keys, pending/answered state, and `missing_fields` use this ID. Semantic `name` and display `label` are metadata and may repeat; repeated names never share answers. Mapping IDs must match their grounded `widget_id` or `box_id`.
 
-A conflict clarification also includes `conflict`, shaped as `{ "name": string, "sources": Fact[], "asked": boolean, "resolved": boolean }`. A `Fact` has `name`, `value`, `document_id`, `page`, `confidence`, and exactly one source ID (`box_id` or `widget_id`). `compare` reports conflicts but does not ask the question; the next message turn can ask once for clarification.
+
+A conflict clarification also includes `conflict`, shaped as `{ "name": string, "sources": Fact[], "asked": boolean, "resolved": boolean }`. A `Fact` has `name`, `value`, `document_id`, `page`, `confidence`, and exactly one source ID (`box_id` or `widget_id`). `compare` groups evidence by semantic name but does not ask the question; the next message turn can ask once per affected document/slot. Resolving one slot never resolves another slot or document.
 
 Completed message response example:
 
@@ -96,10 +98,10 @@ Completed message response example:
 Create a draft directly with `POST /workspaces/{workspace_id}/drafts`:
 
 ```json
-{"document_id":"opaque-id","values":{"member_name":"Synthetic Example"}}
+{"document_id":"opaque-id","values":{"p0-w0":"Synthetic Example"}}
 ```
 
-`values` maps logical field names to strings (omitted values defaults to `{}`). A successful response is `{"request_id":"...","status":"completed","draft_id":"...","preview_url":"/api/v1/drafts/.../preview","export_url":"/api/v1/drafts/.../export","missing_fields":["..." ]}`. Preview and export URLs are relative API paths. No PDF is submitted externally; export is a separate copy.
+`values` maps document-local source-slot IDs to strings (omitted values defaults to `{}`). Semantic-name keys are rejected, not aliased. A successful response is `{"request_id":"...","status":"completed","draft_id":"...","preview_url":"/api/v1/drafts/.../preview","export_url":"/api/v1/drafts/.../export","missing_fields":["p0-w1"]}`. Preview and export URLs are relative API paths. No PDF is submitted externally; export is a separate copy.
 
 ## Compare, explanations, and health
 

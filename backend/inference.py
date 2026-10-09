@@ -238,7 +238,7 @@ def _sources(structure, writable=False):
     return sources
 
 
-def _batches(structure, skill, instruction, sources, size, model, mapped_fields=None):
+def _batches(structure, skill, instruction, sources, size, model):
     # Every source is considered; never truncate a whole document or silently skip pages.
     instruction = _schema_instruction(instruction, model)
     offset = 0
@@ -287,7 +287,7 @@ def _mapping_extensions(proposals, sources, prefixes):
     extensions = []
     errors = []
     for candidate in sorted(proposals.candidates, key=lambda item: item.rank):
-        fields, names, targets = [], set(), set()
+        fields, targets = [], set()
         try:
             for proposed in candidate.fields:
                 field = proposed.model_dump()
@@ -296,11 +296,9 @@ def _mapping_extensions(proposals, sources, prefixes):
                     raise InferenceError("Local model mapped a protected field")
                 if source["id"] in targets:
                     raise InferenceError("Duplicate mapping target: " + source["id"])
-                if field["name"] in names:
-                    raise InferenceError("Duplicate semantic field name: " + field["name"])
-                names.add(field["name"])
                 targets.add(source["id"])
                 field.pop("target_id")
+                field["id"] = source["id"]
                 field["widget_id" if "field_name" in source else "box_id"] = source["id"]
                 field.update(page=source["page"], rect=source["rect"],
                              type=source.get("type", "text"),
@@ -315,11 +313,6 @@ def _mapping_extensions(proposals, sources, prefixes):
             errors.append(str(exc))
             continue
         for score, previous in prefixes:
-            repeated = names & {field["name"] for field in previous}
-            if repeated:
-                errors.append("Semantic names already assigned to other sources: " +
-                              ", ".join(sorted(repeated)))
-                continue
             extensions.append((score + candidate.rank, previous + fields))
     if not extensions:
         raise InferenceError("; ".join(dict.fromkeys(errors)))
@@ -345,35 +338,20 @@ def map_form(structure, skill):
         "For character-cell groups separated by printed punctuation, use their row labels "
         "and Group position from context: a three-group identification number has prefix, "
         "main and suffix components, not three copies of the whole number. "
-        "mapped_fields are earlier sources with agreed semantic names; do not assign those "
-        "names to a different source. Never use target IDs, coordinates, counters or arbitrary "
-        "suffixes to make names unique. Never map protected fields or omit a writable source. "
-        "When names conflict, reconsider their section and row evidence instead of renaming "
-        "duplicates mechanically."
+        "Semantic names and labels are metadata; repeated meanings may use the same name. "
+        "Source target_id, not the name, identifies each distinct writable slot. "
+        "Do not invent targets or geometry, omit sources, or rename duplicates mechanically."
     )
     with _LOCK:
         sources = _sources(structure, writable=True)
         if not sources:
             raise InferenceError("Document contains no grounded writable form targets")
         prefixes = [(0, [])]
-        mapped_fields = []
-        for excerpt in _batches(structure, skill, instruction, sources, 12, Proposals,
-                                mapped_fields=mapped_fields):
+        for excerpt in _batches(structure, skill, instruction, sources, 12, Proposals):
             prefixes = _json_call(
                 instruction, excerpt, skill, Proposals, reserve=3072,
                 validate=lambda proposals: _mapping_extensions(
                     proposals, excerpt["sources"], prefixes))
-            # Only agreed assignments are evidence for subsequent batches, not one
-            # arbitrary alternative's vocabulary.
-            agreed = {(field["name"], field.get("box_id") or field.get("widget_id"))
-                      for field in prefixes[0][1]}
-            for _, fields in prefixes[1:]:
-                agreed &= {(field["name"], field.get("box_id") or field.get("widget_id"))
-                           for field in fields}
-            mapped_fields[:] = [
-                {"name": field["name"], "label": field["label"]}
-                for field in prefixes[0][1]
-                if (field["name"], field.get("box_id") or field.get("widget_id")) in agreed]
         # PDF validation selects the greatest rank; model preference rank 1 is best.
         return [{"rank": 3 - index, "fields": fields}
                 for index, (_, fields) in enumerate(prefixes)]

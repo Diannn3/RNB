@@ -479,19 +479,20 @@ def _mapping_candidate(structure, candidate):
     targets = {widget["id"]: widget for widget in structure["widgets"]}
     for page in structure["pages"]:
         targets.update({box["id"]: {**box, "page": page["page"]} for box in page["boxes"] if box["source"] == "layout"})
-    names, used, fields = set(), set(), []
+    used, fields = set(), []
     for field in candidate["fields"]:
         if not isinstance(field, dict) or not isinstance(field.get("name"), str) or not _NAME.fullmatch(field["name"]):
             raise ValueError("Invalid logical field name")
-        if field["name"] in names or not isinstance(field.get("label"), str) or not isinstance(field.get("required"), bool):
-            raise ValueError("Duplicate or malformed logical field")
-        names.add(field["name"])
+        if not isinstance(field.get("label"), str) or not isinstance(field.get("required"), bool):
+            raise ValueError("Malformed logical field")
         keys = [key for key in ("widget_id", "box_id") if field.get(key) is not None]
         if len(keys) != 1 or not isinstance(field[keys[0]], str) or field[keys[0]] not in targets:
             raise ValueError("Unknown mapping target")
         key, target = keys[0], targets[field[keys[0]]]
         if (key == "widget_id") != ("field_name" in target):
             raise ValueError("Mapping target kind mismatch")
+        if field.get("id") != target["id"]:
+            raise ValueError("Field ID must match its source slot")
         identity = target.get("field_name", target["id"])
         if identity in used:
             raise ValueError("Duplicate mapping target")
@@ -555,7 +556,7 @@ def render_preview(path: Path, destination: Path, page: int = 0) -> None:
 
 
 def _write_values(structure, mapping, values):
-    fields = {field["name"]: field for field in mapping["fields"]}
+    fields = {field["id"]: field for field in mapping["fields"]}
     if not isinstance(values, dict) or any(name not in fields for name in values):
         raise ValueError("Unknown supplied field")
     widgets = {widget["id"]: widget for widget in structure["widgets"]}

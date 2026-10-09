@@ -163,14 +163,15 @@ class DraftInput(Input):
 def create_draft(session, workspace_id, document_id, request, supplied):
     structure, mapping = mapping_for(session, workspace_id, document_id, request)
     current = state(workspace_id)
-    fields = {f['name']: f for f in mapping['fields']}
-    if any(name not in fields or fields[name].get('protected') for name in supplied):
+    fields = {f['id']: f for f in mapping['fields']}
+    if any(identity not in fields or fields[identity].get('protected') for identity in supplied):
         raise ValueError('unknown_or_protected_field')
     values = dict(current['values'].get(document_id, {}))
     values.update(supplied)
-    for name, conflict in current['conflicts'].items():
-        if not conflict.get('resolved'):
-            values.pop(name, None)
+    for identity, field in fields.items():
+        conflict = current['conflicts'].get(field['name'])
+        if conflict and (document_id, identity) not in conflict.get('resolutions', {}):
+            values.pop(identity, None)
     db.transition(session, request, 'rendering')
     source = db.resource(session, db.ArtifactRecord, document_id)
     temporary = db.ROOT / workspace_id / f'{db.opaque_id()}.draft'
@@ -249,15 +250,15 @@ def messages(workspace_id: str, body: MessageInput, session: SessionDep):
         if body.answer is not None and pending is None:
             raise ValueError('no_pending_question')
         if pending and (body.answer is not None or body.skip or body.finalize):
-            name = pending['name']
+            identity = pending['id']
             if body.answer and body.answer.strip():
-                values[name] = body.answer
+                values[identity] = body.answer
                 if pending['kind'] == 'conflict':
-                    current['conflicts'][name]['resolved'] = True
-                    current['conflicts'][name]['resolution'] = body.answer
+                    conflict = current['conflicts'][pending['conflict_name']]
+                    conflict.setdefault('resolutions', {})[(document_id, identity)] = body.answer
             else:
-                values.pop(name, None)
-            current.setdefault('answered', {}).setdefault(document_id, set()).add(name)
+                values.pop(identity, None)
+            current.setdefault('answered', {}).setdefault(document_id, set()).add(identity)
             current['pending'] = None
         if body.finalize:
             result = create_draft(session, workspace_id, document_id, request, {})
@@ -267,23 +268,33 @@ def messages(workspace_id: str, body: MessageInput, session: SessionDep):
             db.transition(session, request, 'needs_input')
             return {'request_id': request.id, 'status': 'needs_input',
                     **current['pending']['response']}
-        fields = {f['name']: f for f in mapping['fields'] if not f.get('protected')}
-        for name, conflict in current['conflicts'].items():
-            if name in fields and not conflict.get('resolved') and not conflict.get('asked'):
-                conflict['asked'] = True
-                label = fields[name]['label']
-                response = {'assistant_message': f'Which value should this draft use for {label}? You may skip to leave it blank.',
-                            'field': name, 'conflict': conflict}
-                current['pending'] = {'kind': 'conflict', 'name': name, 'response': response}
+        fields = {f['id']: f for f in mapping['fields'] if not f.get('protected')}
+        answered = current.setdefault('answered', {}).setdefault(document_id, set())
+        for identity, field in fields.items():
+            conflict = current['conflicts'].get(field['name'])
+            slot = (document_id, identity)
+            if conflict and slot not in conflict.get('resolutions', {}):
+                asked = conflict.setdefault('asked_slots', set())
+                if slot in asked:
+                    continue
+                asked.add(slot)
+                response = {'assistant_message': f"Which value should this draft use for {field['label']}? You may skip to leave it blank.",
+                            'field': identity, 'name': field['name'], 'label': field['label'],
+                            'conflict': {'name': field['name'], 'sources': conflict['sources'],
+                                         'asked': True, 'resolved': False}}
+                current['pending'] = {'kind': 'conflict', 'id': identity,
+                                      'conflict_name': field['name'], 'response': response}
                 db.transition(session, request, 'needs_input')
                 return {'request_id': request.id, 'status': 'needs_input', **response}
-        answered = current.setdefault('answered', {}).setdefault(document_id, set())
-        unresolved = {n for n, c in current['conflicts'].items() if not c.get('resolved')}
-        for name, field in fields.items():
-            if not values.get(name) and name not in answered | unresolved:
+        for identity, field in fields.items():
+            conflict = current['conflicts'].get(field['name'])
+            if conflict and (document_id, identity) not in conflict.get('resolutions', {}):
+                continue
+            if not values.get(identity) and identity not in answered:
                 question = inference.ask_question(field, skill('government-form-assistant'))
-                response = {'assistant_message': question, 'field': name}
-                current['pending'] = {'kind': 'field', 'name': name, 'response': response}
+                response = {'assistant_message': question, 'field': identity,
+                            'name': field['name'], 'label': field['label']}
+                current['pending'] = {'kind': 'field', 'id': identity, 'response': response}
                 db.transition(session, request, 'needs_input')
                 return {'request_id': request.id, 'status': 'needs_input', **response}
         result = create_draft(session, workspace_id, document_id, request, {})
@@ -334,7 +345,7 @@ def compare(workspace_id: str, session: SessionDep):
                 previous = current['conflicts'].get(name, {})
                 if previous.get('sources') != facts:
                     current['conflicts'][name] = {'name': name, 'sources': facts,
-                                                  'asked': False, 'resolved': False}
+                                                  'asked_slots': set(), 'resolutions': {}}
         db.transition(session, request, 'completed')
         return {'request_id': request.id, 'status': 'completed', 'comparisons': results}
 

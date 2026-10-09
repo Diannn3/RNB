@@ -53,15 +53,16 @@ def check_forms(forms, defaults, client, post):
             assert field not in seen, f'Repeated question for {field}'
             seen.add(field)
             answer = None
-            if 'last_name' in field or 'surname' in field:
+            name = turn['name']
+            if 'last_name' in name or 'surname' in name:
                 answer = 'EXAMPLE'
-            elif 'first_name' in field or 'given_name' in field:
+            elif 'first_name' in name or 'given_name' in name:
                 answer = 'ADA'
-            elif 'middle_name' in field:
+            elif 'middle_name' in name:
                 answer = 'DEMO'
-            elif field in {'applicant_name', 'member_name', 'full_name', 'name'}:
+            elif name in {'applicant_name', 'member_name', 'full_name', 'name'}:
                 answer = 'ADA DEMO EXAMPLE'
-            elif 'email' in field:
+            elif 'email' in name:
                 answer = 'ada@example.invalid'
             if answer:
                 supplied.add(answer)
