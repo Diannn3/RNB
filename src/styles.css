@@ -2110,3 +2110,79 @@ textarea {
     font-size: 10px;
   }
 }
+
+/* Conversational interview: one thread, one composer, one current question. */
+.workspace-chat { background: #111214; color: #f4f4f2; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+.workspace-chat .workspace-header { background: #111214; border-color: #303236; min-height: 66px; padding-block: 8px; flex: none; }
+.workspace-chat .workspace-title, .workspace-chat .session-strip, .workspace-chat .workspace-bottom { display: none; }
+.workspace-chat .workspace-actions { color: #f4f4f2; }
+.workspace-chat .workspace-actions .button.secondary { background: transparent; color: #f4f4f2; border-color: #44474d; }
+.workspace-chat .journey-nav { flex: none; background: #111214; border-color: #303236; color: #b9bdc4; padding-block: 8px; }
+.workspace-chat .journey-nav a[aria-current="step"] { color: #fff; border-color: #fff; }
+.workspace-chat .feedback-area { flex: none; margin-block: 0; }
+.workspace-chat #workspace-main { min-height: 0; display: flex; flex: 1; padding: 0; overflow: hidden; }
+.interview-chat { width: 100%; min-height: 0; display: flex; flex-direction: column; }
+.chat-title { width: min(100%, 808px); margin: 0 auto; padding: 20px 24px 14px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 20px; }
+.chat-title h1 { font-size: 18px; letter-spacing: -.02em; margin: 0; font-weight: 600; }
+.chat-title p { font-size: 12px; color: #b9bdc4; margin: 0; grid-column: 1; }
+.chat-document-button { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 7px; align-items: center; color: #eceeF1; border: 1px solid #44474d; border-radius: 8px; background: transparent; padding: 10px 12px; min-height: 44px; }
+.interview-transcript { flex: 1; min-height: 0; overflow-y: auto; scrollbar-color: #50545d #111214; }
+.interview-messages { max-width: 808px; padding: 18px 24px 32px; margin: auto; display: flex; flex-direction: column; gap: 26px; }
+.interview-message { max-width: 88%; line-height: 1.65; font-size: 15px; overflow-wrap: anywhere; }
+.interview-message p { margin: 0 0 10px; white-space: pre-wrap; }
+.interview-message.assistant { align-self: flex-start; }
+.interview-message.user { align-self: flex-end; background: #27292e; border-radius: 16px 16px 4px 16px; padding: 13px 18px; }
+.interview-message.user p { margin: 0; }
+.inline-question-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.inline-question-controls > div { width: 100%; }
+.chat-choice { border: 1px solid #555962; background: #222429; color: #f4f4f2; padding: 10px 14px; border-radius: 8px; min-height: 44px; font-size: 14px; margin: 4px 8px 4px 0; max-width: 100%; white-space: normal; text-align: left; }
+.chat-choice:hover, .chat-document-button:hover { background: #34373d; }
+.chat-text-button { color: #d3d7df; text-decoration: underline; text-underline-offset: 4px; background: transparent; border: 0; padding: 10px 4px; min-height: 44px; font-size: 13px; }
+.chat-suggestion, .chat-limit { color: #c1c5ce; font-size: 13px; }
+.edit-reply { display: block; padding-bottom: 0; font-size: 11px; min-height: 34px; }
+.interview-footer { flex: none; width: min(100%, 808px); padding: 12px 24px max(12px, env(safe-area-inset-bottom)); margin: 0 auto; position: relative; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.interview-composer { display: flex; align-items: flex-end; gap: 12px; border: 1px solid #4a4d55; border-radius: 24px; background: #1d1f23; padding: 10px 12px 10px 20px; }
+.interview-composer textarea { flex: 1; width: 0; min-width: 0; min-height: 28px; max-height: 160px; background: transparent; color: #f4f4f2; border: none; box-shadow: none; resize: none; padding: 3px 0; line-height: 1.5; font-size: 16px; caret-color: #fff; }
+.interview-composer textarea::placeholder { color: #adb2bc; }
+.interview-composer textarea:focus { outline: none; }
+.interview-composer:focus-within { border-color: #c1c5ce; }
+.chat-send { width: 44px; height: 44px; min-width: 44px; border: none; border-radius: 50%; display: grid; place-items: center; background: #f4f4f2; color: #17191c; }
+.chat-send:disabled { background: #565b66; color: #d8dce4; }
+.chat-progress { color: #b9bdc4; text-align: center; font-size: 11px; margin: 8px 0 0; }
+.chat-latest { position: absolute; left: 50%; top: -40px; transform: translateX(-50%); background: #303339; color: #fff; border: 1px solid #555962; padding: 10px 14px; border-radius: 8px; display: flex; gap: 7px; }
+.chat-completion { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.workspace-chat .chat-completion .button.primary { background: #f4f4f2; color: #17191c; }
+.interview-message .evidence { color: #f4f4f2; background: #222429; border-color: #44474d; }
+.interview-message .evidence button { color: #d1ddff; }
+.chat-error { color: #ffdccb; padding: 12px 0; }
+.chat-status { color: #c1c5ce; font-size: 13px; }
+.workspace-chat ::selection { background: #405b99; color: #fff; }
+.workspace-chat button:focus-visible, .workspace-chat a:focus-visible { outline: 2px solid #cedbff; outline-offset: 3px; }
+.export-formats { border: 0; padding: 0; margin: 0 0 24px; }
+.export-formats legend { font-weight: 600; margin-bottom: 12px; }
+.export-formats label { display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--border); cursor: pointer; align-items: center; }
+.export-formats input { width: 18px; height: 18px; accent-color: #17191c; flex: none; }
+.export-formats strong, .export-formats small { display: block; }
+.export-formats small { color: #62666d; margin-top: 4px; font-size: 12px; }
+.export-empty { display: flex; flex-direction: column; justify-content: center; min-height: 400px; padding: 48px; }
+.word-content-preview { padding: 36px; background: #fff; min-height: 500px; }
+.word-content-preview > p { color: #62666d; font-size: 13px; }
+.word-content-preview dl > div { padding: 18px 0; border-bottom: 1px solid #e0e2e5; }
+.word-content-preview dt { font-weight: 600; }
+.word-content-preview dd { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.word-content-preview blockquote { margin: 16px 0 0; font-size: 13px; color: #62666d; }
+.word-content-preview cite { display: block; margin-top: 6px; }
+.answer-review-note { font-size: 12px; color: #62666d; margin-top: 20px; }
+@media (max-width: 850px) {
+  .workspace-chat { height: calc(100dvh - var(--chat-keyboard-inset, 0px)); }
+  .chat-title { padding: 14px 16px 8px; }
+  .chat-title h1 { font-size: 15px; }
+  .chat-document-button { padding: 9px; font-size: 12px; }
+  .interview-messages { padding: 20px 16px 24px; gap: 22px; }
+  .interview-message { max-width: 94%; }
+  .interview-footer { padding-inline: 12px; }
+  .workspace-chat .journey-nav { padding-inline: 16px; gap: 18px; font-size: 11px; }
+  .word-content-preview, .export-empty { padding: 24px; }
+}
+.workspace-chat .journey-nav a { color: #a5a8b0; }
+.workspace-chat .journey-nav a.active { color: #f7f7f5; }

@@ -1,7 +1,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { ArrowUpRight, Check, FileText, X } from "lucide-react";
 import { Link } from "react-router";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 export function Brand({ dark = false }: { dark?: boolean }) {
   return (
     <Link
@@ -24,18 +24,20 @@ export function Modal({
   title,
   description,
   children,
+  finalFocus,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
   children: ReactNode;
+  finalFocus?: RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="modal-backdrop" />
-        <Dialog.Popup className="modal">
+        <Dialog.Popup className="modal" finalFocus={finalFocus}>
           <div className="modal-heading">
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Close className="icon-button" aria-label="Close dialog">
@@ -83,9 +85,11 @@ export function Evidence({
 export function Status({
   reviewed = false,
   children,
+  finalFocus,
 }: {
   reviewed?: boolean;
   children: ReactNode;
+  finalFocus?: RefObject<HTMLElement | null>;
 }) {
   return (
     <span className={`status ${reviewed ? "reviewed" : ""}`}>

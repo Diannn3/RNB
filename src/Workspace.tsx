@@ -38,7 +38,6 @@ import {
 import {
   download,
   disposeDownloadUrls,
-  exportDraft,
   parseDocument,
   sampleDocuments,
 } from "./pdf";
@@ -50,11 +49,15 @@ import ConversationPage from "./ConversationPage";
 import DraftPreview from "./DraftPreview";
 import ExportPage from "./ExportPage";
 import { useJourney, type Stage } from "./journey";
+import { confirmationKey, handled, interviewComplete, pendingFields } from "./interview";
 const PdfViewer = lazy(() => import("./PdfViewer"));
 type Tab = VerificationTab;
 export default function SessionLayout() {
   const session = useSession();
   const chatRunning = useJourney((s) => s.running);
+  const progress = useJourney((s) => s.progress);
+  const finished = interviewComplete(session.fields, progress);
+  const confirmed = !!session.confirmation && session.confirmation === confirmationKey(session.documents, session.fields, progress);
   const { documents, fields, selected, activeDoc, page, source, mode } =
     session;
   const route = useLocation();
@@ -71,6 +74,7 @@ export default function SessionLayout() {
   const [unsaved, setUnsaved] = useState(false);
   const draftChanged = useCallback((dirty: boolean, value?: string) => {
     setUnsaved(dirty);
+    if (dirty) useSession.getState().invalidateConfirmation();
     const state = useSession.getState();
     const current = state.fields.find((f) => f.id === state.selected);
     setWorkingEdit(dirty && current && value !== undefined ? { id: current.id, value } : undefined);
@@ -85,15 +89,13 @@ export default function SessionLayout() {
     | "clear"
     | "add"
     | "export"
-    | "incomplete"
+    | "confirm"
     | "restore"
     | "switch"
     | "agent"
     | "source"
   >("none");
   const [fieldLabel, setFieldLabel] = useState("");
-  const [exportBytes, setExportBytes] = useState<Uint8Array>();
-  const [exportEpoch, setExportEpoch] = useState(0);
   const [project, setProject] = useState<SavedProject>();
   const [confirmCopy, setConfirmCopy] = useState(
     "Your current files and answers will be removed from memory. Download a project first if you want to resume later.",
@@ -127,18 +129,18 @@ export default function SessionLayout() {
       navigate("/app", { replace: true });
       setNotice("Open a PDF to begin this session.");
     }
-    document.querySelector<HTMLElement>(".stage-heading h1")?.focus({ preventScroll: true });
+    if (target && !["signed", "xfa", "image"].includes(target.support) && stage === "verification" && !interviewComplete(useSession.getState().fields, useJourney.getState().progress)) {
+      navigate("/app/conversation", { replace: true }); setNotice("Finish the interview before checking your answers.");
+    }
+    document.querySelector<HTMLElement>(".stage-heading h1, .chat-title h1")?.focus({ preventScroll: true });
   }, [route.pathname, target?.id]);
+  useEffect(() => {
+    if (stage === "export" && target && !confirmed) { navigate("/app/verification", { replace: true }); setNotice("Confirm your current information before exporting."); }
+  }, [stage, confirmed, target?.id]);
   useEffect(() => {
     setPreviewMode("draft");
     setWorkingEdit(undefined);
   }, [selected, target?.id]);
-  useEffect(() => {
-    if (exportBytes && exportEpoch !== session.epoch) {
-      setExportBytes(undefined);
-      disposeDownloadUrls();
-    }
-  }, [session.epoch]);
   useEffect(() => {
     const query = matchMedia("(max-width: 850px)");
     const update = () => setNarrow(query.matches);
@@ -172,8 +174,6 @@ export default function SessionLayout() {
     // A different target is a hard boundary for all document-derived local state.
     sourceJob.current++;
     disposeDownloadUrls();
-    setExportBytes(undefined);
-    setExportEpoch(0);
     setProject(undefined);
     setConfirmAction(() => () => {});
     setSourceDoc("");
@@ -385,45 +385,21 @@ export default function SessionLayout() {
       if (ticket === job.current && alive.current) setBusy("");
     }
   }
-  async function prepareExport() {
-    if (!target) return;
-    const ticket = ++job.current;
-    const epoch = session.epoch;
-    setBusy("Preparing your draft");
-    setError("");
-    try {
-      const bytes = await exportDraft(target, fields);
-      if (
-        ticket !== job.current ||
-        epoch !== useSession.getState().epoch ||
-        !alive.current
-      )
-        return;
-      setExportBytes(bytes);
-      setExportEpoch(epoch);
-      setNotice("");
-      setDialog("none");
-      navigate("/app/export");
-    } catch (e) {
-      setError(message(e));
-      setDialog("none");
-    } finally {
-      if (ticket === job.current && alive.current) setBusy("");
-    }
-  }
   function startExport() {
-    if (unsaved) {
-      setNotice("Save your changes before preparing a draft.");
-      return;
+    if (unsaved) { setNotice("Save your changes before continuing."); return; }
+    if (!interviewComplete(useSession.getState().fields, useJourney.getState().progress)) {
+      const pending = pendingFields(useSession.getState().fields, useJourney.getState().progress);
+      setNotice(`Finish ${pending.length} remaining question${pending.length === 1 ? "" : "s"} before confirming your information.`);
+      navigate("/app/conversation"); return;
     }
-    if (fields.some((f) => !isApproved(f))) {
-      setDialog("incomplete");
-    } else void prepareExport();
+    setDialog("confirm");
   }
   function saveProject() {
     if (!target) return;
+    if (unsaved || useJourney.getState().running) { setNotice("Save your changes and finish the current reply before downloading a project."); return; }
       const data = {
-      schemaVersion: 2,
+      schemaVersion: 3,
+      progress: useJourney.getState().progress,
       stage,
       messages: useJourney.getState().messages,
       skipped: useJourney.getState().skipped,
@@ -507,7 +483,7 @@ export default function SessionLayout() {
           `Reattach the target PDF named ${originalTarget.name}.`,
         );
       const docs = parsed.map((p) => p.doc);
-      const restored = restoreFields(project, docs, newTarget.fields);
+      const restored = restoreFields(project, docs, newTarget.fields).map((f) => ({ ...f, approval: undefined, state: f.state === "confirmed" ? "user_provided" as const : f.state }));
       if (
         ticket !== job.current ||
         epoch !== useSession.getState().epoch ||
@@ -524,8 +500,9 @@ export default function SessionLayout() {
         const changed = m.sources?.some((s) => !docs.some((d) => d.id === s.documentId && project.documents.some((old) => old.id === d.id && old.hash === d.hash)));
         return changed ? { ...m, text: `${m.text}\nSource documents changed or are unavailable. Check this reply again.`, sources: m.sources?.filter((s) => docs.some((d) => d.id === s.documentId && project.documents.some((old) => old.id === d.id && old.hash === d.hash))) } : m;
       });
-      useJourney.getState().restore(safeMessages, identitiesMatch ? savedSkipped : [], identitiesMatch && restored.some((f) => f.id === project.question?.fieldId) ? project.question : undefined);
-      navigate(project.stage === "conversation" ? "/app/conversation" : "/app/verification");
+      const restoredProgress = identitiesMatch && project.schemaVersion === 3 ? Object.fromEntries(Object.entries(project.progress ?? {}).filter(([id, entry]) => restored.some((f) => f.id === id && f.revision === entry.revision && handled(f, { [id]: entry })))) : {};
+      useJourney.getState().restore(safeMessages, identitiesMatch ? savedSkipped : [], undefined, restoredProgress);
+      navigate(project.stage !== "conversation" && interviewComplete(restored, restoredProgress) ? "/app/verification" : "/app/conversation");
       setDialog("none");
       setNotice(
         docs.every((d) =>
@@ -943,46 +920,8 @@ export default function SessionLayout() {
                   Link a supporting passage <Plus size={14} />
                 </button>
               )}
-              <div className="approval-area">
-                <svg
-                  className="reviewed-check"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="m5 12 4 4 10-10"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    fill="none"
-                  />
-                </svg>
-                <p>
-                  {field.source
-                    ? "Read the source and confirm this answer is right for this form."
-                    : "This answer was provided by you. Check it against your records."}
-                </p>
-                <button
-                  className={`button ${isApproved(field) ? "approved-button" : "primary"}`}
-                  disabled={
-                    unsaved ||
-                    !field.value ||
-                    field.state === "conflict" ||
-                    field.kind === "unsupported" ||
-                    isApproved(field)
-                  }
-                  onClick={() => {
-                    session.approve(field.id);
-                    setNotice(`${field.label} reviewed by you.`);
-                  }}
-                >
-                  <Check size={17} />
-                  {isApproved(field)
-                    ? "Reviewed by you"
-                    : "Approve this answer"}
-                </button>
-              </div>
+              {!field.value && !field.required && <button className="button secondary" onClick={() => { useJourney.getState().record(field.id, field.revision, "explicit_blank"); session.invalidateConfirmation(); }}>Confirm leaving this blank</button>}
+              <p className="answer-review-note">You will confirm all the information together when you continue.</p>
             </div>
           )}
         </>
@@ -991,7 +930,7 @@ export default function SessionLayout() {
   );
   return (
     <div
-      className="workspace"
+      className={`workspace ${stage === "conversation" && !unsafe ? "workspace-chat" : ""}`}
       onClickCapture={(event) => {
         const button = (event.target as HTMLElement).closest("button");
         if (button && !button.disabled) button.focus({ preventScroll: true });
@@ -1001,7 +940,7 @@ export default function SessionLayout() {
         Skip to workspace
       </a>
       <header className="workspace-header">
-        <Brand />
+        <Brand dark={stage === "conversation" && !unsafe} />
         <div className="workspace-title">
           <span>{isSample ? "Sample workspace" : "Your workspace"}</span>
           {isSample && <span className="sample-label">Fictional records</span>}
@@ -1024,19 +963,15 @@ export default function SessionLayout() {
               <Download size={15} /> Save project
             </button>
           )}
-          <button
-            className="button primary export-action"
-            disabled={!target || !fields.length || !!unsafe || !!busy || chatRunning}
-            onClick={() => stage === "conversation" ? navigate("/app/verification") : stage === "export" ? navigate("/app/verification") : startExport()}
-          >
-            <span className="header-stage-action">{stage === "conversation" ? "Review answers" : stage === "export" ? "Back to verification" : "Continue to export"}</span><span className="header-short-action" aria-hidden="true">{stage === "conversation" ? "Review" : stage === "export" ? "Edit" : "Export"}</span> <ArrowRight size={16} />
-          </button>
+          {stage !== "conversation" && target && stage !== "upload" && <button className="button primary export-action" disabled={!!unsafe || !!busy || chatRunning} onClick={() => stage === "export" ? navigate("/app/verification") : startExport()}>
+            {stage === "export" ? "Back to verification" : "Continue"} <ArrowRight size={16} />
+          </button>}
         </div>
       </header>
       <nav className="journey-nav" aria-label="Form progress">
         {(["upload", "conversation", "verification", "export"] as Stage[]).map((s) => <Link key={s} to={s === "upload" ? "/app" : `/app/${s}`} aria-current={stage === s ? "step" : undefined} onClick={(e) => {
           if (chatRunning || unsaved) { e.preventDefault(); setNotice(chatRunning ? "Stop the response before changing stages." : "Save your answer before changing stages."); return; }
-          if ((s !== "upload" && !target) || (s === "export" && (!exportBytes || exportEpoch !== session.epoch))) { e.preventDefault(); setNotice(s === "export" ? "Review your answers and explicitly prepare a draft first." : "Open a PDF first."); }
+          if ((s !== "upload" && !target) || (s === "verification" && !finished && !unsafe) || (s === "export" && !confirmed)) { e.preventDefault(); setNotice(s === "export" ? "Confirm your information in Verification first." : target ? "Finish every required answer and explicitly handle optional questions first." : "Open a PDF first."); }
         }}>{s === "upload" ? "Upload" : s === "conversation" ? "Conversation" : s === "verification" ? "Verification" : "Export"}</Link>)}
       </nav>
       <div className="session-strip">
@@ -1098,16 +1033,16 @@ export default function SessionLayout() {
         )}
       </div>
       <main id="workspace-main">
-        {target && stage === "verification" && <div className="stage-heading verification-heading"><h1 tabIndex={-1}>Check your answers.</h1><p>Edit the details, inspect the preview and mark each answer reviewed.</p></div>}
+        {target && stage === "verification" && <div className="stage-heading verification-heading"><h1 tabIndex={-1}>Check your answers.</h1><p>Edit the details, inspect the preview, then continue to confirm your information.</p></div>}
         {!target || stage === "upload" ? (
           <UploadPage dropzone={dropzone} busy={busy} onSample={() => {
             sampleStarted.current = false;
             requestClear(() => { session.clear(); navigate("/app/sample"); }, "Opening the sample replaces this session with fictional records.");
           }} onProject={(file) => void loadProject(file)} />
         ) : stage === "conversation" && !unsafe ? (
-          <ConversationPage documentPane={documentPane} onReview={() => navigate("/app/verification")} onSource={(s) => session.showSource(s)} onAdd={() => { setFieldLabel(""); setDialog("add"); }} />
+          <ConversationPage ready={!busy} documentPane={documentPane} onReview={() => navigate("/app/verification")} onSource={(s) => session.showSource(s)} onAdd={() => { setFieldLabel(""); setDialog("add"); }} />
         ) : stage === "export" ? (
-          <ExportPage bytes={exportBytes} current={!!exportBytes && exportEpoch === session.epoch} target={target} fields={fields} onBack={() => navigate("/app/verification")} onPrepare={startExport} onProject={saveProject} />
+          <ExportPage current={confirmed} target={target} fields={fields} documents={documents} revisionKey={session.confirmation ?? ""} onBack={() => navigate("/app/verification")} onProject={saveProject} />
         ) : (
           <VerificationPage tab={tab} onTab={(next) => { setTab(next); setQuestionView(false); setQueueOpen(false); }} reviewPane={reviewPane} documentPane={
                   <div id={previewMode === "draft" && !unsafe ? "workspace-document" : undefined} role={narrow && previewMode === "draft" && !unsafe ? "tabpanel" : undefined} aria-labelledby={narrow && previewMode === "draft" && !unsafe ? "workspace-tab-document" : undefined} tabIndex={-1} className={`verification-document mobile-${tab === "Document" ? "visible" : "hidden"}`}>
@@ -1193,33 +1128,8 @@ export default function SessionLayout() {
           </div>
         </form>
       </Modal>
-      <Modal
-        open={dialog === "incomplete"}
-        onOpenChange={(open) => {
-          if (!open) setDialog("none");
-        }}
-        title="Some answers still need review."
-        description="Only reviewed answers will be exported. The remaining entries will be left blank and listed in the draft review."
-      >
-        <p>
-          {fields.filter((f) => !isApproved(f)).length} entries are not
-          reviewed.
-        </p>
-        <div className="modal-actions">
-          <button
-            className="button secondary"
-            onClick={() => setDialog("none")}
-          >
-            Keep reviewing
-          </button>
-          <button
-            className="button primary"
-            disabled={!!busy}
-            onClick={() => void prepareExport()}
-          >
-            Prepare incomplete draft <ArrowRight size={16} />
-          </button>
-        </div>
+      <Modal open={dialog === "confirm"} onOpenChange={(open) => { if (!open) setDialog("none"); }} title="Is all the information correct?" description="Check your answers and the draft preview. Continuing records that you reviewed this information; it does not sign or submit the document.">
+        <div className="modal-actions"><button className="button secondary" onClick={() => setDialog("none")}>No, keep editing</button><button className="button primary" disabled={unsaved || !finished} onClick={() => { if (session.confirmAll()) { setDialog("none"); setNotice(""); navigate("/app/export"); } }}>Yes, continue to export <ArrowRight size={16} /></button></div>
       </Modal>
       <Modal
         open={dialog === "restore"}

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { start, complete, answer } from "./helpers";
 import { PDFDocument, PDFName, PDFString, StandardFonts } from "pdf-lib";
 async function document(
   kind:
@@ -45,9 +46,7 @@ test("unsupported documents explain their boundary and disable export", async ({
       buffer: await document(kind),
     });
     await expect(page.locator(".unsupported-state")).toBeVisible();
-    await expect(
-      page.getByRole("banner").getByRole("button", { name: "Review answers" }),
-    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Review my answers", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Choose another form" }).click();
     await page.getByRole("button", { name: "Clear and continue" }).click();
     await expect(
@@ -76,111 +75,8 @@ test("encrypted and malformed PDFs produce recoverable errors", async ({
     page.getByRole("heading", { name: "Bring your form." }),
   ).toBeVisible();
 });
-test("prefilled values remain visible and manual evidence can be linked", async ({
-  page,
-}) => {
-  await page.goto("/app");
-  await page.getByLabel("Upload a form PDF").setInputFiles({
-    name: "prefilled.pdf",
-    mimeType: "application/pdf",
-    buffer: await document(),
-  });
-  await expect(page).toHaveURL(/app\/conversation$/);
-  await page.getByRole("link", { name: "Verification", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
-  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
-  await expect(page.getByLabel("Answer", { exact: true })).toHaveValue(
-    "Existing answer",
-  );
-  await page.getByRole("button", { name: "Manage documents" }).click();
-  await page.locator('input[type="file"][multiple]').setInputFiles({
-    name: "support.pdf",
-    mimeType: "application/pdf",
-    buffer: await document("support"),
-  });
-  await expect(
-    page.getByRole("button", { name: "Link a supporting passage" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Link a supporting passage" }).click();
-  await page.getByLabel("Exact quotation").fill("An invented quotation");
-  await page.getByRole("button", { name: "Link passage" }).click();
-  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
-    "could not be found",
-  );
-  await page.getByLabel("Exact quotation").fill("Full name: Alex Reyes");
-  await page.getByRole("button", { name: "Link passage" }).click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-  await page.getByRole("button", { name: "Show in document" }).click();
-  await expect(page.locator(".citation-highlight")).toHaveCount(1);
-  await page.getByRole("button", { name: "Approve this answer" }).click();
-  await expect(page.getByText("1 of 1 reviewed")).toBeVisible();
-  await page.getByRole("button", { name: "Remove support.pdf" }).click();
-  await page.getByRole("button", { name: "Clear and continue" }).click();
-  await expect(page.getByText("0 of 1 reviewed")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Show in document" }),
-  ).not.toBeVisible();
-});
-test("cancellation and later edits protect against stale sample results", async ({
-  page,
-}) => {
-  await page.goto("/app/sample");
-  await expect(page).toHaveURL(/app\/conversation$/);
-  await page.getByRole("link", { name: "Verification", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
-  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
-  await expect(
-    page
-      .locator(".review-detail")
-      .getByRole("heading", { name: "Full name", exact: true }),
-  ).toBeVisible();
-  const clockStart = new Date();
-  await page.clock.install({ time: clockStart });
-  await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
-  await page.getByRole("button", { name: "Run sample again" }).click();
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(
-    page.getByText("Operation cancelled.", { exact: false }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Run sample again" }).click();
-  await page.getByLabel("Answer Required").fill("A correction during analysis");
-  await page.getByRole("button", { name: "Save answer", exact: true }).click();
-  await page.clock.runFor(1000);
-  await expect(page.locator(".busy-banner")).not.toBeVisible();
-  await expect(page.getByLabel("Answer Required")).toHaveValue(
-    "A correction during analysis",
-  );
-  await page.getByRole("button", { name: "Choose a field" }).click();
-  await page
-    .getByRole("button", { name: "Email address Needs your answer" })
-    .click();
-  await page.getByLabel("Answer Required").fill("unsaved@example.com");
-  await page.getByRole("button", { name: "Choose a field" }).click();
-  await page
-    .getByRole("button", { name: "Present address Choose the right context" })
-    .click();
-  await expect(page.getByLabel("Answer Required")).toHaveValue("");
-});
-test("questions occur once and manual/sample transitions clear scenario answers", async ({
-  page,
-}) => {
-  await page.goto("/app/sample");
-  await expect(page).toHaveURL(/app\/conversation$/);
-  await page.getByRole("link", { name: "Verification", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Check your answers." })).toBeVisible();
-  if (await page.getByRole("button", { name: "Original & evidence", exact: true }).isVisible()) await page.getByRole("button", { name: "Original & evidence", exact: true }).click();
-  await expect(
-    page
-      .locator(".review-detail")
-      .getByRole("heading", { name: "Full name", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Ask a question 2", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Which address describes where you live now?" })).toHaveCount(1);
-  await page.getByRole("button", { name: "Use your own form" }).click();
-  await page.getByRole("button", { name: "Clear and continue" }).click();
-  await expect(page).toHaveURL(/\/app$/);
-  await expect(
-    page.getByRole("heading", { name: "Bring your form." }),
-  ).toBeVisible();
-  await expect(page.locator(".review-detail")).toHaveCount(0);
+
+test("stopped PDF reply can retry without duplicating the user message",async({page})=>{
+ await start(page);const at=new Date();await page.clock.install({time:at});await page.clock.pauseAt(new Date(at.getTime()+1000));
+ await answer(page,"Why are there two addresses?");await page.getByRole("button",{name:"Stop response",exact:true}).click();await expect(page.getByRole("alert")).toContainText("Response stopped");await page.getByRole("button",{name:"Retry message",exact:true}).click();await page.clock.runFor(1500);await expect(page.getByRole("log")).toContainText("Both can be true");await expect(page.locator(".interview-message.user")).toHaveCount(1);await expect(page.getByText("0 of 4 questions handled",{exact:false})).toBeVisible();
 });

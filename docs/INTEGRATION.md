@@ -10,7 +10,7 @@ Use the target hash returned from ingestion. Preserve actual AcroForm names as f
 
 ## Conversation turns
 
-Optionally implement `turn(input, signal)` and advertise `capabilities.conversation`. Turns are available only when the model is ready and the inference route is local. Inputs include request ID, session epoch, target/supporting documents, analysis revision, current fields, transcript, current question and user text. Return the matching target hash and analysis revision, an assistant message, optional proposals and an optional field question.
+Optionally implement `turn(input, signal)` and advertise `capabilities.conversation`. Turns are available only when the model is ready and the inference route is local. Inputs include request ID, session epoch, target/supporting documents, analysis revision, current fields, transcript, current question and user text. Return the matching target hash and analysis revision, an assistant message, an explicit `intent` (`answer`, `pdf_question`, `clarification`) and an optional field question. An answer result carries `answer: { fieldId, expectedRevision, value, source? }`; only the current pending field and matching revision may advance. PDF questions and clarification never change answers. Legacy results without intent require an explicit user decision.
 
 Each proposal must carry the actual field ID and expected field revision. Responses are schema-validated; stale revisions, incompatible widget values, unknown sources and quotations absent from the PDF are rejected. Proposals require explicit acceptance, and never grant approval. AbortSignal cancels the turn and quotation loading; clear, edits and document replacement invalidate pending results. The deterministic sample is not a general-purpose model.
 
@@ -31,3 +31,11 @@ Project JSON is versioned and validated with Zod. It does not embed PDFs. Restor
 ## Boundaries
 
 Analysis is a deterministic synthetic adapter until integration. OCR, semantic understanding, remote authentication, streaming, offline installation, submission and signing are not implemented. Keep model availability truthful. Export font coverage follows the supplied Plus Jakarta Sans font; arbitrary scripts are not guaranteed.
+
+## Sequential interview and final confirmation
+
+Every editable field begins pending, including detected values. `progress` binds answered/explicit_blank dispositions to field revisions. Required blanks cannot complete; optional blanks require explicit action. Zero editable fields require manual question definition. Chat corrections reopen that field and subsequent fields conservatively because no backend dependency graph is assumed.
+
+Continue opens a Yes/No dialog. Yes atomically records approvals and a snapshot of document identities, field revisions and dispositions. Changes invalidate the snapshot. Export routes require a current snapshot; model responses never grant it. Project schema v3 carries interview progress but never restores final confirmation. v1/v2 values require a fresh interview. Changed identities invalidate progress.
+
+PDF previews use the exact downloadable bytes. Word uses dynamically loaded docx 9.9.0 and includes approved values, explicit blanks and source references. Its Content preview uses the same confirmed fields and is not a pagination/layout preview. Browser fonts in Word depend on the recipient's Word viewer. Supported Unicode is checked in generated XML; arbitrary-script PDF coverage remains bounded by the local font.

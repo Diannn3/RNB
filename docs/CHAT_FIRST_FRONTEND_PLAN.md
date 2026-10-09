@@ -1,3 +1,5 @@
+> Historical plan, superseded by [Conversational interview](CONVERSATIONAL_INTERVIEW.md). Separate input panels and incomplete-export gates are no longer the current flow.
+
 # PapelLess: upload, guided conversation, verification, export
 
 Date: 2026-10-09. Status: proposed revision; application implementation stopped at the user's request.
