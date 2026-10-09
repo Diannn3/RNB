@@ -283,7 +283,7 @@ def map_form(structure, skill):
                                  type=source.get("type", "text"),
                                  options=source.get("options", []), protected=False)
                     if "flags" in source:
-                        field["required"] = bool(source["flags"] & 2)
+                        field["required"] |= bool(source["flags"] & 2)
                     fields.append(field)
                 candidates.append(fields)
             groups.append(candidates)

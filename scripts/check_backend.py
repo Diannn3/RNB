@@ -1,4 +1,4 @@
-"""Run against real local inference: .venv/bin/python -m tests.test_backend."""
+"""Manual AI journey check; run only with explicit approval and an available GPU."""
 import sys
 import io
 import os
@@ -51,7 +51,7 @@ def synthetic_form(patient_name='', birth_date=''):
     return output.getvalue()
 
 
-def test_backend():
+def check_backend():
     with tempfile.TemporaryDirectory() as directory, httpx.Client(timeout=240) as client:
         process = start(directory)
         def post(route, **kwargs):
@@ -139,4 +139,4 @@ def test_backend():
 
 
 if __name__ == '__main__':
-    test_backend()
+    check_backend()

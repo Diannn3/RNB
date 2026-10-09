@@ -152,7 +152,7 @@ def structure(document_id: str, session: SessionDep):
 
 
 class Input(BaseModel):
-    model_config = ConfigDict(extra='forbid', str_max_length=4000)
+    model_config = ConfigDict(extra='forbid', strict=True, str_max_length=4000)
 
 
 class DraftInput(Input):
@@ -280,7 +280,7 @@ def messages(workspace_id: str, body: MessageInput, session: SessionDep):
         answered = current.setdefault('answered', {}).setdefault(document_id, set())
         unresolved = {n for n, c in current['conflicts'].items() if not c.get('resolved')}
         for name, field in fields.items():
-            if field.get('required') and not values.get(name) and name not in answered | unresolved:
+            if not values.get(name) and name not in answered | unresolved:
                 question = inference.ask_question(field, skill('medical-form-assistant'))
                 response = {'assistant_message': question, 'field': name}
                 current['pending'] = {'kind': 'field', 'name': name, 'response': response}
