@@ -192,6 +192,21 @@ class InferenceTests(unittest.TestCase):
                 inf.map_form(structure, "")
         self.assertEqual(complete.call_count, 2)
 
+    def test_repeated_target_retries_without_dropping_other_slot(self):
+        structure = self.mapping_structure(2)
+        repeated = inf.Proposals(candidates=[
+            self.mapping_candidate(["member_first_name", "patient_first_name"])])
+        repeated.candidates[0].fields[1].target_id = "box-0"
+        corrected = inf.Proposals(candidates=[
+            self.mapping_candidate(["member_first_name", "patient_first_name"])])
+        responses = [{"content": repeated.model_dump_json()},
+                     {"content": corrected.model_dump_json()}]
+        with patch.object(inf, "_tokens", return_value=10), patch.object(
+                inf, "_complete", side_effect=responses):
+            mapping = inf.map_form(structure, "")
+        self.assertEqual([(field["name"], field["box_id"]) for field in mapping[0]["fields"]],
+                         [("member_first_name", "box-0"), ("patient_first_name", "box-1")])
+
     def test_mapping_cross_batch_duplicate_keeps_source_identity(self):
         structure = self.mapping_structure(13)
         responses = [inf.Proposals(candidates=[self.mapping_candidate(self.mapping_member_names())]),

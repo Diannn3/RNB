@@ -23,7 +23,7 @@ LANGUAGE_PROMPT = (
     "Example: 'Ano ang first name ng member para sa synthetic form?' "
 )
 CONTEXT = 8192
-REASONING_BUDGET = 0 if PROFILE == "qwen" else 256
+REASONING_BUDGET = 0 if PROFILE == "qwen" else 32
 _LOCK = threading.RLock()
 SYSTEM = (
     "You are Papelless, a local synthetic Philippine government-form assistant "
@@ -185,20 +185,32 @@ class Facts(StrictModel):
     facts: list[Fact] = Field(max_length=20)
 
 
-def _schema_instruction(instruction, model):
-    return instruction + "\nReturn JSON matching this schema:\n" + _dump(model.model_json_schema())
-
-
-def _json_call(instruction, data, skill, model, reserve=2048, validate=None):
+def _output_schema(model, data):
     schema = model.model_json_schema()
     if isinstance(data, dict) and data.get("sources"):
         for definition in [schema, *schema.get("$defs", {}).values()]:
             if "target_id" in definition.get("properties", {}):
                 definition["properties"]["target_id"] = {
                     "type": "string", "enum": [source["id"] for source in data["sources"]]}
+        if model is Proposals:
+            count = len(data["sources"])
+            fields = schema["$defs"]["Candidate"]["properties"]["fields"]
+            fields.update(minItems=count, maxItems=count)
+            schema["properties"]["candidates"]["maxItems"] = 1
+            fields.pop("items")
+            proposed = schema["$defs"]["ProposedField"]
+            fields["prefixItems"] = [
+                {**proposed, "properties": {
+                    **proposed["properties"], "target_id": {"const": source["id"]}}}
+                for source in data["sources"]]
+    return schema
+
+
+def _json_call(instruction, data, skill, model, reserve=2048, validate=None):
+    schema = _output_schema(model, data)
     instruction += "\nReturn JSON matching this schema:\n" + _dump(schema)
-    messages = [{"role": "system", "content": SYSTEM + "\n" + skill + "\n" + instruction},
-                {"role": "user", "content": _data(data)}]
+    messages = [{"role": "system", "content": SYSTEM + "\n" + skill},
+                {"role": "user", "content": instruction + "\n" + _data(data)}]
     for attempt in range(2):
         message = _complete(messages, reserve=reserve, schema=schema)
         try:
@@ -212,7 +224,7 @@ def _json_call(instruction, data, skill, model, reserve=2048, validate=None):
                 error = str(exc)
         if attempt:
             raise InferenceError(error) from None
-        messages[0]["content"] += (
+        messages[1]["content"] += (
             "\nRetry: " + error + ". Reconsider the supplied source evidence and return only "
             "JSON matching the required schema. Do not invent targets or rename duplicates "
             "with arbitrary suffixes."
@@ -240,19 +252,18 @@ def _sources(structure, writable=False):
 
 def _batches(structure, skill, instruction, sources, size, model):
     # Every source is considered; never truncate a whole document or silently skip pages.
-    instruction = _schema_instruction(instruction, model)
     offset = 0
     metadata = {key: structure[key] for key in ("document_id", "document_kind", "page_count")}
     metadata["pages"] = [{key: page[key] for key in ("page", "width", "height")}
                          for page in structure["pages"]]
-    if mapped_fields is not None:
-        metadata["mapped_fields"] = mapped_fields
     while offset < len(sources):
         count = min(size, len(sources) - offset)
         while True:
             excerpt = {**metadata, "sources": sources[offset:offset + count]}
-            messages = [{"role": "system", "content": SYSTEM + "\n" + skill + "\n" + instruction},
-                        {"role": "user", "content": _data(excerpt)}]
+            rendered_instruction = instruction + "\nReturn JSON matching this schema:\n" + _dump(
+                _output_schema(model, excerpt))
+            messages = [{"role": "system", "content": SYSTEM + "\n" + skill},
+                        {"role": "user", "content": rendered_instruction + "\n" + _data(excerpt)}]
             if _tokens(messages) + 3072 + REASONING_BUDGET + 256 <= CONTEXT:
                 break
             if count == 1:
@@ -322,22 +333,23 @@ def _mapping_extensions(proposals, sources, prefixes):
 
 def map_form(structure, skill):
     instruction = (
-        "Map every writable source in this excerpt exactly once. Return ranked candidates "
-        "(rank 1 best, at most 3), each with fields: name (stable semantic snake_case), label, "
-        "required (boolean), and target_id copied from an existing source id. Do not include "
-        "rectangles or types: the backend copies those from the source. Use the source text, "
-        "field_name and context as evidence for meaning; context describes the local section, "
-        "row and nearby labels. Distinguish applicants, members, dependents and representatives "
-        "using that section evidence, e.g. member_last_name versus dependent_last_name. Preserve the "
-        "specific printed component: first, last, middle name and name extension are different "
-        "fields. Separate labeled month/day/year targets need distinct birth_month, birth_day "
-        "and birth_year names, prefixed with the person identified by the section. For an "
-        "individual checkbox include the meaning of its option, such as member_sex_female; "
-        "its source options remain unchanged. Labels must describe the actual person and "
-        "component or checkbox choice, not just repeat an ambiguous nearby heading. "
-        "For character-cell groups separated by printed punctuation, use their row labels "
-        "and Group position from context: a three-group identification number has prefix, "
-        "main and suffix components, not three copies of the whole number. "
+        "Interpret only sources in this excerpt. Return one best candidate (rank 1). "
+        "For each source, use its own text/field_name and local section/row context to "
+        "identify the field. Return one field per source in the same order. "
+        "Copy target_id exactly. Use English snake_case semantic names, even for Tagalog "
+        "labels. Naming vocabulary: Apelyido=last_name, Unang Pangalan=first_name, "
+        "Gitnang Pangalan=middle_name, Ext.=name_extension, Kapanganakan=date_of_birth, "
+        "Edad=age, Kasarian=sex, Trabaho=occupation, Buwanang Kita=monthly_income, "
+        "Buong Pangalan=full_name, Relasyon=relationship, Numero ng Telepono=phone_number. "
+        "This vocabulary never authorizes repairing unreadable OCR. Keep the source "
+        "label unchanged. Name each field from its OWN text, not a different label "
+        "mentioned in the row context. "
+        "Prefix names with the person/section identified in that source's context; do not "
+        "call every field by the first label in a row. Describe the actual field in label "
+        "and set required from printed instructions. Separate month/day/year and "
+        "identification-number prefix/main/suffix groups are distinct fields. "
+        "For checkboxes include the option's meaning. For repeated table rows, use the "
+        "evidenced person/row position, not arbitrary counters. "
         "Semantic names and labels are metadata; repeated meanings may use the same name. "
         "Source target_id, not the name, identifies each distinct writable slot. "
         "Do not invent targets or geometry, omit sources, or rename duplicates mechanically."

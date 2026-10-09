@@ -23,6 +23,7 @@ def render_pdf(content, page_index=0):
 
 
 def check_forms(forms, defaults, client, post, artifacts):
+    results = []
     for selected in defaults:
         source = forms / selected['path']
         original = source.read_bytes()
@@ -116,3 +117,7 @@ def check_forms(forms, defaults, client, post, artifacts):
         print(f"PASS: {selected['agency']} real-model conversation, sourced explanation, "
               "synthetic values in PDF, unchanged source/protected regions, preview and DRAFT.",
               flush=True)
+        results.append({**selected, 'passed': True, 'answered_values': sorted(supplied),
+                        'missing_fields': turn['missing_fields'],
+                        'pdf_path': str(pdf_path), 'preview_path': str(preview_path)})
+    return results

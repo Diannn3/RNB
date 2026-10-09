@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager, contextmanager
+import hashlib
+import json
 from pathlib import Path
 from threading import RLock
 from typing import Annotated
@@ -136,9 +138,26 @@ def mapping_for(session, workspace_id, document_id, request):
     current = state(workspace_id)
     structure = get_structure(session, document_id)
     if document_id not in current['mappings']:
-        db.transition(session, request, 'generating_proposals')
-        candidates = inference.map_form(structure, skill('government-form-assistant'))
-        current['mappings'][document_id] = pdf.validate_mapping(structure, candidates)
+        # Caching for live demo purposes: only the byte-identical bundled DSWD form.
+        bundled = (Path(__file__).parent.parent / 'skills/government-form-assistant'
+                   / 'assets/forms/dswd-aics-general-intake-sheet.pdf')
+        cache = db.ROOT / f'dswd-mapping-{document.sha256}.json'
+        demo_form = document.sha256 == hashlib.sha256(bundled.read_bytes()).hexdigest()
+        mapping = None
+        if demo_form and cache.is_file():
+            try:
+                mapping = pdf.validate_mapping(structure, [json.loads(cache.read_text())])
+            except (ValueError, OSError):
+                pass
+        if mapping is None:
+            db.transition(session, request, 'generating_proposals')
+            candidates = inference.map_form(structure, skill('government-form-assistant'))
+            mapping = pdf.validate_mapping(structure, candidates)
+            if demo_form:
+                temporary = cache.with_suffix('.tmp')
+                temporary.write_text(json.dumps(mapping))
+                temporary.replace(cache)
+        current['mappings'][document_id] = mapping
     return structure, current['mappings'][document_id]
 
 

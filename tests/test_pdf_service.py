@@ -45,7 +45,7 @@ class PdfBehavior(unittest.TestCase):
                     mapping = {"rank": 1, "fields": [field_for(target, widget=True)]}
                     with self.assertRaises(ValueError):
                         export_pdf(source, root / "source-DRAFT.pdf", structure,
-                                   mapping, {"member_name": "FORBIDDEN"})
+                                   mapping, {target["id"]: "FORBIDDEN"})
 
     def test_two_character_cells_merge_without_absorbing_wide_fields(self):
         self.assertEqual(_cell_intervals([0, 12.3, 24.6]), [(0, 24.6)])
@@ -56,6 +56,62 @@ class PdfBehavior(unittest.TestCase):
                 "boxes": [{"text": "Member name", "rect": [40, 140, 140, 152], "confidence": 100.0},
                           {"text": "Last name", "rect": [40, 110, 120, 122], "confidence": 100.0}]}
         self.assertEqual(_layout_boxes(page, []), [])
+
+    def test_real_dswd_slots_are_fields_not_ocr_fragments(self):
+        source = Path(__file__).resolve().parents[1] / "skills/government-form-assistant/assets/forms/dswd-aics-general-intake-sheet.pdf"
+        page = inspect_document(source, "dswd-grounded")["pages"][0]
+        writable = [box for box in page["boxes"] if box["source"] == "layout" and not box["protected"]]
+        self.assertEqual(len(writable), 38)
+        family = [box for box in writable if "Family Compos" in box["context"]]
+        self.assertEqual(len(family), 5)
+        self.assertEqual(sum("Edad" in box["text"] for box in writable), 3)
+        for box in writable:
+            self.assertGreaterEqual(sum(character.isalpha() for character in box["text"]), 3)
+            self.assertIn("Section:", box["context"])
+            self.assertFalse(any(_intersects(box["rect"], region) for region in page["protected_regions"]))
+            self.assertFalse(any(_intersects(box["rect"], printed["rect"]) for printed in page["boxes"]
+                                 if printed["source"] == "ocr" and printed["text"].strip("_ .")))
+        staff = next(box for box in page["boxes"] if box["source"] == "ocr" and box["text"] == "Personnel")
+        self.assertTrue(all(box["rect"][1] > staff["rect"][3] for box in writable))
+
+    def test_real_sss_continuation_preserves_every_beneficiary_row(self):
+        source = Path(__file__).resolve().parents[1] / "skills/government-form-assistant/assets/forms/sss-e1-personal-record.pdf"
+        structure = inspect_document(source, "sss-grounded")
+        page = structure["pages"][2]
+        writable = [box for box in page["boxes"] if box["source"] == "layout" and not box["protected"]]
+        self.assertEqual(len(writable), 55)
+        for label in ("(LAST NAME)", "(FIRST NAME)", "(MIDDLE NAME)", "(SUFFIX)"):
+            self.assertEqual(sum(box["text"] == label for box in writable), 8)
+        dates = [box for box in writable if "DATE OF BIRTH" in box["text"]]
+        self.assertEqual(len(dates), 21)
+        for cells in (2, 4):
+            self.assertEqual(sum(f"Character cells: {cells}" in box["context"] for box in dates),
+                             14 if cells == 2 else 7)
+        self.assertEqual(sum(box["text"] == "RELATIONSHIP" for box in writable), 2)
+        self.assertFalse(any(box["text"] == "SS NUMBER" for box in writable))
+        for box in writable:
+            self.assertFalse(any(_intersects(box["rect"], printed["rect"]) for printed in page["boxes"]
+                                 if printed["source"] == "pdf_text" and printed["text"].strip("_ .")))
+            self.assertFalse(any(_intersects(box["rect"], region) for region in page["protected_regions"]))
+
+    def test_real_pmrf_update_columns_and_image_character_groups(self):
+        source = Path(__file__).resolve().parents[1] / "skills/government-form-assistant/assets/forms/philhealth-pmrf-012020.pdf"
+        structure = inspect_document(source, "pmrf-grounded")
+        first, updates = structure["pages"]
+        writable = [box for box in updates["boxes"] if box["source"] == "layout" and not box["protected"]]
+        self.assertEqual(len(writable), 15)
+        self.assertEqual(sum(box["type"] == "checkbox" for box in writable), 5)
+        self.assertEqual(sum(box["type"] == "text" for box in writable), 10)
+        pins = [box for box in first["boxes"] if box["source"] == "layout" and not box["protected"]
+                and box["text"] == "PHILHEALTH IDENTIFICATION NUMBER (PIN)"]
+        self.assertEqual(len(pins), 3)
+        self.assertTrue(all("Character cells: 4" in box["context"] for box in pins))
+        self.assertEqual(sum(box["source"] == "layout" and box["type"] == "checkbox"
+                             and box["text"] == "MONONYM" and not box["protected"] for box in first["boxes"]), 7)
+        for page in structure["pages"]:
+            for box in page["boxes"]:
+                if box["source"] == "layout" and not box["protected"]:
+                    self.assertFalse(any(_intersects(box["rect"], region) for region in page["protected_regions"]))
 
     def test_official_cf1_source_regions_and_section_labels(self):
         source = Path(__file__).resolve().parents[1] / "skills/government-form-assistant/assets/forms/philhealth-cf1-092018.pdf"

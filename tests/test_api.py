@@ -17,6 +17,45 @@ from tests.test_pdf_service import field_for
 
 
 class ApiBehavior(unittest.TestCase):
+    def test_dswd_demo_cache_survives_restart_without_sharing_answers(self):
+        source = (Path(__file__).resolve().parents[1] / 'skills/government-form-assistant'
+                  / 'assets/forms/dswd-aics-general-intake-sheet.pdf').read_bytes()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            engine = create_engine(f'sqlite:///{root / "metadata.db"}',
+                                   connect_args={'check_same_thread': False})
+            with patch.object(db, 'ROOT', root), patch.object(db, 'engine', engine):
+                with TestClient(app) as client:
+                    workspace = client.post('/api/v1/workspaces').json()['id']
+                    prefix = f'/api/v1/workspaces/{workspace}'
+                    document = client.post(prefix + '/documents', files={
+                        'file': ('dswd.pdf', source, 'application/pdf')
+                    }).json()['document']['id']
+                    structure = state(workspace)['structures'][document]
+                    target = next(box for page in structure['pages'] for box in page['boxes']
+                                  if box['source'] == 'layout' and not box['protected']
+                                  and box['type'] == 'text')
+                    candidate = {'rank': 1, 'fields': [field_for(target)]}
+                    with patch.object(inference, 'map_form', return_value=[candidate]):
+                        draft = client.post(prefix + '/drafts', json={
+                            'document_id': document, 'values': {target['id']: 'ADA'}})
+                    self.assertEqual(draft.status_code, 201, draft.text)
+                with TestClient(app) as client, patch.object(
+                        inference, 'map_form', side_effect=AssertionError('cache miss')):
+                    workspace = client.post('/api/v1/workspaces').json()['id']
+                    prefix = f'/api/v1/workspaces/{workspace}'
+                    document = client.post(prefix + '/documents', files={
+                        'file': ('renamed.pdf', source, 'application/pdf')
+                    }).json()['document']['id']
+                    draft = client.post(prefix + '/drafts', json={'document_id': document})
+                    self.assertEqual(draft.status_code, 201, draft.text)
+                    exported = client.post(draft.json()['export_url'])
+                    self.assertEqual(exported.status_code, 200)
+                    self.assertNotIn('ADA', ''.join(
+                        page.extract_text() for page in PdfReader(io.BytesIO(exported.content)).pages))
+                    self.assertEqual(state(workspace)['values'][document], {})
+            engine.dispose()
+
     def test_duplicate_names_have_independent_answers_edits_and_conflicts(self):
         stream = io.BytesIO()
         canvas = Canvas(stream)
@@ -82,6 +121,51 @@ class ApiBehavior(unittest.TestCase):
                     other_doc = client.post(prefix + '/messages', json={'document_id': docs[1]}).json()
                     self.assertEqual(other_doc['field'], ids[0])
                     self.assertIn('conflict', other_doc)
+            engine.dispose()
+
+    def test_invalid_model_target_does_not_abort_workspace_and_can_retry(self):
+        stream = io.BytesIO()
+        canvas = Canvas(stream)
+        canvas.drawString(50, 730, 'Applicant first name')
+        canvas.acroForm.textfield(name='applicant_first_name', x=50, y=700, width=200, height=20)
+        canvas.save()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            engine = create_engine(f'sqlite:///{root / "metadata.db"}',
+                                   connect_args={'check_same_thread': False})
+            with patch.object(db, 'ROOT', root), patch.object(db, 'engine', engine), patch.object(
+                    inference, '_tokens', return_value=10):
+                with TestClient(app) as client:
+                    workspace = client.post('/api/v1/workspaces').json()['id']
+                    prefix = f'/api/v1/workspaces/{workspace}'
+                    document = client.post(prefix + '/documents', files={
+                        'file': ('synthetic.pdf', stream.getvalue(), 'application/pdf')
+                    }).json()['document']['id']
+                    target = state(workspace)['structures'][document]['widgets'][0]['id']
+                    def proposal(target_id):
+                        return {'content': inference.Proposals(candidates=[
+                            inference.Candidate(rank=1, fields=[inference.ProposedField(
+                                target_id=target_id, name='applicant_first_name',
+                                label='Applicant first name', required=True)])
+                        ]).model_dump_json()}
+                    with patch.object(inference, '_complete', side_effect=[
+                            proposal('unknown'), proposal('unknown'), proposal(target),
+                            {'content': '{"question":"What is the applicant first name?"}'}]):
+                        failed = client.post(prefix + '/messages', json={'document_id': document})
+                        self.assertEqual(failed.status_code, 503)
+                        request = client.get('/api/v1/requests/' +
+                                             failed.json()['detail']['request_id']).json()
+                        self.assertEqual(request['status'], 'failed')
+                        self.assertNotIn(document, state(workspace)['mappings'])
+                        retried = client.post(prefix + '/messages', json={'document_id': document})
+                        self.assertEqual(retried.status_code, 200)
+                        self.assertEqual(retried.json()['field'], target)
+                        completed = client.post(prefix + '/messages', json={'answer': 'ADA'})
+                        self.assertEqual(completed.status_code, 200)
+                        self.assertEqual(completed.json()['status'], 'completed')
+                    exported = client.post(completed.json()['export_url'])
+                    reader = PdfReader(io.BytesIO(exported.content))
+                    self.assertEqual(reader.get_fields()['applicant_first_name']['/V'], 'ADA')
             engine.dispose()
 
     def test_persistent_artifacts_and_unresolved_conflict_export(self):

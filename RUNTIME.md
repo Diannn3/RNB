@@ -252,6 +252,18 @@ The production PDF writer verified the values; source hashes and protected-regio
 pixels were checked unchanged. These copies are replays, not the deleted original
 temporary artifacts. Future runs retain the actual verified exports and previews.
 
+### DSWD live-demo mapping cache
+
+The first successful mapping of the bundled DSWD AICS PDF writes
+`$PAPELLESS_DATA/dswd-mapping-<sha256>.json` (default: `workspaces/`).
+Byte-identical uploads reuse that mapping across filenames, workspaces, and API
+restarts. Changed PDF bytes use normal inference. Cache hits are revalidated
+against the uploaded document's extracted slots, geometry, and protections;
+invalid cached mappings are regenerated. Only mappings are cached, never answers.
+Delete the cache file to force a fresh mapping after model or prompt changes.
+This is caching for live demo purposes; the first upload still needs inference.
+
+
 
 ## Non-AI verification
 
