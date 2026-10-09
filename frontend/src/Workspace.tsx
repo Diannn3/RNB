@@ -6,7 +6,7 @@ import {
   lazy,
   Suspense,
 } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useDropzone } from "react-dropzone";
 import { animate, createScope } from "animejs";
 import {
@@ -15,7 +15,6 @@ import {
   Sun,
   Check,
   ChevronDown,
-  Download,
   FilePlus2,
   FileText,
   FolderOpen,
@@ -257,9 +256,6 @@ export default function SessionLayout() {
       useSession
         .getState()
         .applyAnalysis(result.fields, result.analysisRevision);
-      setNotice(
-        "Fictional sample ready. Start with the suggested name or the address question.",
-      );
       navigate("/app/conversation", { replace: true });
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError"))
@@ -329,6 +325,8 @@ export default function SessionLayout() {
       sampleStarted.current = false;
       navigate("/app");
       setDialog("none");
+      setNotice("");
+      setError("");
     },
     description = "Your current files and answers will be removed from memory. Download a project first if you want to resume later.",
   ) {
@@ -945,66 +943,21 @@ export default function SessionLayout() {
       </a>
       <header className="workspace-header">
         <Brand dark={darkMode} />
-        <div className="workspace-title">
-          <span>{isSample ? "Sample workspace" : "Your workspace"}</span>
-          {isSample && <span className="sample-label">Fictional records</span>}
-        </div>
         <div className="workspace-actions">
           <button className="icon-button theme-toggle" aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"} title={darkMode ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDarkMode((value) => !value)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
           <button
-            className="icon-button"
-            aria-label="Clear workspace"
+            className="button secondary new-chat"
+            aria-label="New chat"
             onClick={() => requestClear()}
             disabled={!!busy}
           >
-            <Trash2 size={18} />
+            <Plus size={18} /> New chat
           </button>
-          {target && (
-            <button
-              className="button secondary project-save"
-              aria-label="Save project"
-              onClick={saveProject}
-            >
-              <Download size={15} /> Save project
-            </button>
-          )}
           {stage !== "conversation" && target && stage !== "upload" && <button className="button primary export-action" disabled={!!unsafe || !!busy || chatRunning} onClick={() => stage === "export" ? navigate("/app/verification") : startExport()}>
             {stage === "export" ? "Back to verification" : "Continue"} <ArrowRight size={16} />
           </button>}
         </div>
       </header>
-      <nav className="journey-nav" aria-label="Form progress">
-        {(["upload", "conversation", "verification", "export"] as Stage[]).map((s) => <Link key={s} to={s === "upload" ? "/app" : `/app/${s}`} aria-current={stage === s ? "step" : undefined} onClick={(e) => {
-          if (chatRunning || unsaved) { e.preventDefault(); setNotice(chatRunning ? "Stop the response before changing stages." : "Save your answer before changing stages."); return; }
-          if ((s !== "upload" && !target) || (s === "verification" && !finished && !unsafe) || (s === "export" && !confirmed)) { e.preventDefault(); setNotice(s === "export" ? "Confirm your information in Verification first." : target ? "Finish every required answer and explicitly handle optional questions first." : "Open a PDF first."); }
-        }}>{s === "upload" ? "Upload" : s === "conversation" ? "Conversation" : s === "verification" ? "Verification" : "Export"}</Link>)}
-      </nav>
-      <div className="session-strip">
-        <span>
-          <ShieldCheck size={14} /> Files stay in this session
-        </span>
-        <span>
-          {isSample
-            ? "Sample analysis · not a live model"
-            : capabilities.analysis
-              ? "Local agent available"
-              : "Manual mode · AI agent not connected"}
-          {target && (
-            <button
-              className="text-button"
-              onClick={() => void analyze()}
-              disabled={!!busy}
-            >
-              {isSample
-                ? "Run sample again"
-                : capabilities.analysis
-                  ? "Suggest answers"
-                  : "Agent details"}{" "}
-              <ChevronDown size={13} />
-            </button>
-          )}
-        </span>
-      </div>
       <div className="feedback-area">
         {busy && (
           <div className="busy-banner" role="status">
@@ -1057,23 +1010,6 @@ export default function SessionLayout() {
           } />
         )}
       </main>
-      <div className="workspace-bottom">
-        <span>No signatures. No submissions. Just your draft.</span>
-        <button
-          className="text-button"
-          onClick={() =>
-            requestClear(() => {
-              session.clear();
-              sampleStarted.current = false;
-              navigate(isSample ? "/app" : "/app/sample");
-              setDialog("none");
-            })
-          }
-        >
-          {isSample ? "Use your own form" : "Try the sample"}{" "}
-          <ArrowRight size={14} />
-        </button>
-      </div>
       <Modal
         open={dialog === "clear"}
         onOpenChange={(open) => {
