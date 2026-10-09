@@ -11,9 +11,9 @@ No tests were run for the integration. Subsequent authorized startup verified th
 ## Live workflow
 
 - `/` preserves the approved paper-light hero and GSAP narrative. All workspace entry links lead to `/app`.
-- `/app` creates or opens an API workspace, uploads synthetic PDFs, lists documents and loads extracted structure and original artifacts.
-- Select a document for the API conversation. Answer or skip its pending question; source-slot IDs, not semantic names, identify editable values.
-- Compare records and inspect grounded source evidence. Explanations use the bundled official-source corpus and are demo information, not government advice.
+- `/app` has a centered entry screen with a filename dropdown for reopening persisted PDFs. Names are retained for new uploads; legacy records show an earlier-upload label. The reserved mascot slot is intentionally empty until the supplied `pely.webp` asset is available.
+- Uploading the first PDF automatically requests its first question. Subsequent supporting PDFs do not interrupt the active form. Answer or skip its pending question; source-slot IDs, not semantic names, identify editable values. The viewport-height workspace keeps the composer visible while messages and the original PDF scroll independently. A response spinner indicates work in progress; the upload/ID/service rail collapses after upload and can be reopened with the header’s Workspace tools control.
+- Conversation and Review are the two workflow tabs. Ask “Explain DSWD AICS” or “Compare my documents” in the same composer, or use its suggestion buttons. Explanation and comparison replies stay in the conversation with citations and inspectable source evidence; they do not answer or advance the pending form field. Explanations remain limited to the bundled official-source corpus and are demo information, not government advice; unsupported forms receive an explicit abstention. Enter sends; Shift+Enter adds a line break.
 - Prepare a draft from direct slot edits or the conversation. Partial drafts are allowed; missing and unresolved fields remain blank. Inspect the returned PNG preview, missing-field list, and optional full multipage PDF view, then explicitly confirm human review before the final PDF download.
 - New workspace and document/value changes invalidate frontend download confirmation. Confirmation is never supplied by the model.
 

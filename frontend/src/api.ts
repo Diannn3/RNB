@@ -15,6 +15,7 @@ export interface ApiDocument {
   document_kind: DocumentKind;
   ingest_status: string;
   created_at: string;
+  filename?: string | null;
 }
 
 export type Rect = [number, number, number, number];
