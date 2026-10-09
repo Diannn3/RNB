@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 PROFILE = os.environ.get("PAPELLESS_MODEL_PROFILE", "lfm")
 MODEL, LANGUAGE, GPU_LAYERS = {
     "lfm": ("LFM2.5-2.6B-Q4_K_M", "English", 99),
-    "qwen": ("Qwen3.5-4B-Q4_K_M", "Taglish", 12),
+    "qwen": ("Qwen3.5-4B-Q4_K_M", "Taglish", 99),
 }[PROFILE]
 LANGUAGE_PROMPT = (
     "Use concise English for conversational replies and questions. "
@@ -116,7 +116,7 @@ def _complete(messages, reserve=2048, tools=None, schema=None):
     payload = {"model": MODEL, "messages": messages,
                "max_tokens": reserve + REASONING_BUDGET,
                "temperature": 0, "stream": False, "cache_prompt": False,
-               "reasoning_budget": REASONING_BUDGET,
+               "reasoning_budget_tokens": REASONING_BUDGET,
                "chat_template_kwargs": {"enable_thinking": True}}
     if tools:
         payload.update(tools=tools, parallel_tool_calls=False)

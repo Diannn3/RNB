@@ -54,16 +54,19 @@ export LD_LIBRARY_PATH="$PWD/.runtime/llama-cuda/cudart-llama-b11429-bin-ubuntu-
 .runtime/llama-cuda/llama-b11429/llama-server \
   --model .runtime/models/Qwen3.5-4B-Q4_K_M.gguf \
   --alias Qwen3.5-4B-Q4_K_M --host 127.0.0.1 --port 8081 \
-  --device CUDA0 --gpu-layers 12 \
+  --device CUDA0 --gpu-layers 99 \
   --ctx-size 8192 --parallel 1 --threads 4 --threads-batch 4 \
   --batch-size 256 --ubatch-size 128 --cache-ram 0 \
-  --jinja --reasoning-budget 256 --chat-template-kwargs '{"enable_thinking":true}' \
+  --jinja --reasoning on --reasoning-budget 256 \
   --no-webui --no-slots --offline --log-disable
 ```
 
-The RTX 2050 had only 1,860 MiB free during the Qwen smoke run. Full offload
-(`--gpu-layers 99`) failed with CUDA out-of-memory; 12 GPU layers loaded
-successfully, with remaining layers on CPU. This is the conservative launch default.
+Full offload initially failed while an existing LFM server occupied 1,834 MiB
+of VRAM. After stopping all llama servers, Qwen loaded with `--gpu-layers 99`,
+8,192 context tokens and a 256-token reasoning budget. Its measured GPU memory
+was 3,026 MiB. Full offload is now the default for both profiles; run one model
+at a time on the RTX 2050. Partial offload remains possible by lowering the
+server's `--gpu-layers` manually when other GPU workloads must remain active.
 
 There is one 8,192-token slot. Inference reserves output and counts the actual
 rendered chat template using `/apply-template` and `/tokenize`, including tool
@@ -91,6 +94,14 @@ reported `Qwen3.5-4B-Q4_K_M` and generated
 `Ano ang first name ng member para sa synthetic form?`.
 Both reported 8,192 context tokens. The 18 inference boundary tests passed
 under each profile. These checks do not establish full PDF workflow acceptance.
+
+Light-reasoning verification: the Qwen response exposed a nonempty
+`reasoning_content` and correctly answered 17 times 23 as 391 in Taglish.
+Both profiles send the supported `reasoning_budget_tokens: 256` API field.
+LFM2.5-2.6B is not a dedicated thinking model; allowing a reasoning budget does
+not guarantee that it emits a separate reasoning trace. The existing external
+LFM server was not reconfigured; new conversation-check launches use the light
+budget. All old llama servers were subsequently stopped for the Qwen full-offload retry.
 
 ## Start the API with rootless OCR
 
