@@ -48,9 +48,13 @@ def slot_context(structure, slot):
     groups = (
         r'^(?:name of person making request|organization agency)$',
         r'^(?:member|mother s maiden name|spouse(?: if married)?|dependents?)$',
-        r'^(?:permanent address|mailing address)$',
+        r'^(?:permanent (?:home )?address|mailing address)$',
     )
-    for pattern in groups:
+    for index, pattern in enumerate(groups):
+        if index == 1 and ('Applicant row:' in context or 'DECLARATION OF DEPENDENTS' in context):
+            continue  # The extractor already supplies the more specific printed row owner.
+        if index == 2 and 'ADDRESS' not in context.upper():
+            continue  # Address headings must not spill into later dependent/name rows.
         headings = [box for box in page['boxes'] if box.get('source') != 'layout'
                     and box.get('rect') and box['rect'][1] >= slot['rect'][3] - 6
                     and re.fullmatch(pattern, normalize(box.get('text', '')))]
