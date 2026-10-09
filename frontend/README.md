@@ -29,4 +29,3 @@ See [backend handoff](docs/INTEGRATION.md), [guided journey receipt](docs/GUIDED
 
 Workspace defaults to light mode. The header moon/sun button changes the workspace theme for the current session; refresh returns to light. Original PDF pages and Word previews retain paper colors.
 
-Current branch: `update/papelless-light-default-theme`. The user authorized pushing this branch; deployment and merging remain separate.
