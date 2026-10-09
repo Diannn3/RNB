@@ -1,0 +1,58 @@
+{
+  "artifact_type": "development_reference_map",
+  "map_id": "philhealth-cf1-revised-2018-semantic-map",
+  "generated_by": "GPT-Luna",
+  "generated_on": "2026-10-09",
+  "purpose": "Semantic comparator for development-time mapping evaluation only.",
+  "runtime_use": false,
+  "runtime_policy": "Runtime LFM must map the actual uploaded PDF structure. This artifact is never a runtime fallback or source of field coordinates.",
+  "source_form": {
+    "title": "PhilHealth Claim Form 1 (CF-1)",
+    "revision": "Revised September 2018",
+    "page_count": 1,
+    "url": "https://www.philhealth.gov.ph/downloads/claim/ClaimForm1_092018.pdf",
+    "source_notice": "This form may be reproduced and is NOT FOR SALE. This reference map is not a modified copy of the official form."
+  },
+  "limitations": [
+    "This map was prepared from the official form's extracted text and semantic labels, not a verified widget/coordinate inspection.",
+    "No PDF widget identifiers, bounding boxes, page coordinates, or exact field geometry are asserted.",
+    "At runtime, extract and validate actual form structure before applying any candidate mapping.",
+    "Field values must come from the patient, member, or explicitly provided source documents; never infer missing identity data."
+  ],
+  "field_candidates": [
+    {"logical_field": "member.philhealth_pin", "section": "Part I — Member Information", "source_label": "PhilHealth Identification Number (PIN) of Member", "role": "member", "status": "candidate"},
+    {"logical_field": "member.name.last", "section": "Part I — Member Information", "source_label": "Name of Member — Last Name", "role": "member", "status": "candidate"},
+    {"logical_field": "member.name.first", "section": "Part I — Member Information", "source_label": "Name of Member — First Name", "role": "member", "status": "candidate"},
+    {"logical_field": "member.name.extension", "section": "Part I — Member Information", "source_label": "Name Extension (JR/SR/III)", "role": "member", "status": "candidate"},
+    {"logical_field": "member.name.middle", "section": "Part I — Member Information", "source_label": "Middle Name", "role": "member", "status": "candidate"},
+    {"logical_field": "member.date_of_birth", "section": "Part I — Member Information", "source_label": "Date of Birth", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.unit_room_floor", "section": "Part I — Member Information", "source_label": "Mailing Address — Unit/Room No./Floor", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.building_name", "section": "Part I — Member Information", "source_label": "Mailing Address — Building Name", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.house_number", "section": "Part I — Member Information", "source_label": "Mailing Address — Lot/Blk/House/Bldg. No.", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.street", "section": "Part I — Member Information", "source_label": "Mailing Address — Street", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.subdivision", "section": "Part I — Member Information", "source_label": "Mailing Address — Subdivision/Village", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.barangay", "section": "Part I — Member Information", "source_label": "Mailing Address — Barangay", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.city_municipality", "section": "Part I — Member Information", "source_label": "Mailing Address — City/Municipality", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.province", "section": "Part I — Member Information", "source_label": "Mailing Address — Province", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.country", "section": "Part I — Member Information", "source_label": "Mailing Address — Country", "role": "member", "status": "candidate"},
+    {"logical_field": "member.address.zip_code", "section": "Part I — Member Information", "source_label": "Mailing Address — Zip Code", "role": "member", "status": "candidate"},
+    {"logical_field": "member.sex", "section": "Part I — Member Information", "source_label": "Sex — Male/Female", "role": "member", "status": "candidate"},
+    {"logical_field": "member.contact.landline", "section": "Part I — Member Information", "source_label": "Landline No. (Area Code + Tel. No.)", "role": "member", "status": "candidate"},
+    {"logical_field": "member.contact.mobile", "section": "Part I — Member Information", "source_label": "Mobile No.", "role": "member", "status": "candidate"},
+    {"logical_field": "member.contact.email", "section": "Part I — Member Information", "source_label": "Email Address", "role": "member", "status": "candidate"},
+    {"logical_field": "patient.is_member", "section": "Part I — Member Information", "source_label": "Patient is the member? Yes/No", "role": "patient/member relationship", "status": "candidate", "notes": "Controls whether Part II dependent patient details are applicable."},
+    {"logical_field": "patient.philhealth_pin", "section": "Part II — Patient Information", "source_label": "PhilHealth Identification Number (PIN) of Dependent", "role": "patient/dependent", "status": "candidate", "condition": "Only when patient is not the member."},
+    {"logical_field": "patient.name.last", "section": "Part II — Patient Information", "source_label": "Name of Patient — Last Name", "role": "patient/dependent", "status": "candidate", "condition": "Only when patient is not the member."},
+    {"logical_field": "patient.name.first", "section": "Part II — Patient Information", "source_label": "Name of Patient — First Name", "role": "patient/dependent", "status": "candidate", "condition": "Only when patient is not the member."},
+    {"logical_field": "patient.name.extension", "section": "Part II — Patient Information", "source_label": "Name Extension (JR/SR/III)", "role": "patient/dependent", "status": "candidate", "condition": "Only when patient is not the member."},
+    {"logical_field": "patient.name.middle", "section": "Part II — Patient Information", "source_label": "Middle Name", "role": "patient/dependent", "status": "candidate", "condition": "Only when patient is not the member."},
+    {"logical_field": "patient.date_of_birth", "section": "Part II — Patient Information", "source_label": "Date of Birth", "role": "patient/dependent", "status": "candidate", "condition": "Only when patient is not the member."},
+    {"logical_field": "patient.relationship_to_member", "section": "Part II — Patient Information", "source_label": "Relationship to Member — Child/Parent/Spouse", "role": "patient/dependent", "status": "candidate", "allowed_values_from_form": ["Child", "Parent", "Spouse"], "condition": "Only when patient is not the member."},
+    {"logical_field": "patient.sex", "section": "Part II — Patient Information", "source_label": "Sex — Male/Female", "role": "patient/dependent", "status": "candidate", "condition": "Only when patient is not the member."}
+  ],
+  "locked_sections": [
+    {"section": "Part III — Member Certification", "reason": "Contains legal attestation, member/representative signatures, dates, thumbmark, and authorization details. The demo does not sign or simulate signatures."},
+    {"section": "Part IV — Employer's Certification", "reason": "Employer/PEN/contact/business and certification/signature fields are not patient-answerable."},
+    {"section": "Part V — For PhilHealth Use Only", "reason": "Official-use-only fields are protected."}
+  ]
+}
