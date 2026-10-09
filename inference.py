@@ -8,7 +8,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 
 MODEL = "LFM2.5-2.6B-Q4_K_M"
 CONTEXT = 8192
@@ -355,3 +355,113 @@ def parse_tool_calls(message):
             raise ValueError("Duplicate LFM tool arguments")
         calls.append({"name": call.func.id, "arguments": arguments})
     return calls
+
+
+def _tool_schemas(handlers, scope):
+    if not handlers or set(handlers) - TOOLS.keys():
+        raise InferenceError("Only the seven allowlisted tools may be registered")
+    schemas = []
+    for name in handlers:
+        schema = TOOLS[name].model_json_schema()
+        for kind in ("document", "workspace"):
+            key = kind + "_id"
+            if key in schema["properties"]:
+                schema["properties"][key]["enum"] = sorted(scope.get(kind + "_ids", ()))
+        schemas.append({"type": "function", "function": {
+            "name": name, "description": name.replace("_", " "),
+            "parameters": schema}})
+    return schemas
+
+
+def _validated_calls(message, handlers, scope):
+    calls = parse_tool_calls(message)
+    if len(calls) > 7:
+        raise ValueError("Too many tool calls")
+    for call in calls:
+        name = call["name"]
+        if name not in TOOLS or name not in handlers:
+            raise ValueError("Tool is not allowlisted")
+        arguments = TOOLS[name].model_validate(call["arguments"]).model_dump()
+        for kind in ("document", "workspace"):
+            key = kind + "_id"
+            if key in arguments and arguments[key] not in scope.get(kind + "_ids", ()):
+                raise ValueError("Tool ID is outside the active workspace")
+        call["arguments"] = arguments
+    return calls
+
+
+def _tool_result_excerpt(result):
+    if isinstance(result, dict) and "pages" in result and "document_id" in result:
+        return {"document_id": result["document_id"], "document_kind": result["document_kind"],
+                "page_count": result["page_count"], "sources": _sources(result)}
+    return result
+
+
+def _fit_history(history, tools, reserve):
+    # Drop old conversational turns as units, retaining the current request and tool chain.
+    while _tokens(history, tools) + reserve + 64 > CONTEXT:
+        user_indices = [index for index, message in enumerate(history)
+                        if message["role"] == "user"]
+        if len(user_indices) < 2:
+            raise InferenceError("Tool conversation exceeds the inference context budget")
+        del history[user_indices[0]:user_indices[1]]
+
+
+def run_tools(messages, handlers, scope):
+    """Handlers map names to (callable, Pydantic output type); scope contains ID sets."""
+    with _LOCK:
+        tools = _tool_schemas(handlers, scope)
+        history = [{"role": "system", "content": SYSTEM + "\nUse only the listed tools."}]
+        for message in messages:
+            if message.get("role") not in {"system", "user", "assistant"}:
+                raise InferenceError("Invalid conversation message role")
+            if not isinstance(message.get("content"), str):
+                raise InferenceError("Conversation content must be text")
+            if message["role"] == "system":
+                history[0]["content"] += "\n" + message["content"]
+            else:
+                history.append(dict(message))
+        retry_used = False
+        rounds = 0
+        while True:
+            _fit_history(history, tools, 1024)
+            message = _complete(history, reserve=1024, tools=tools)
+            try:
+                calls = _validated_calls(message, handlers, scope)
+            except (ValidationError, ValueError, TypeError, KeyError, SyntaxError):
+                if retry_used:
+                    raise InferenceError("Local model emitted invalid or out-of-scope tools") from None
+                retry_used = True
+                history[0]["content"] += "\nRetry: use only valid tools with exact scoped IDs."
+                continue
+            if not calls:
+                if not isinstance(message.get("content"), str) or not message["content"].strip():
+                    raise InferenceError("Local model returned an empty assistant message")
+                return {"role": "assistant", "content": message["content"]}
+            if rounds == 3:
+                raise InferenceError("Local inference exceeded three tool rounds")
+            rounds += 1
+            assistant = {"role": "assistant", "content": None, "tool_calls": []}
+            for index, call in enumerate(calls):
+                assistant["tool_calls"].append({"id": f"call_{rounds}_{index}",
+                    "type": "function", "function": {
+                        "name": call["name"], "arguments": _dump(call["arguments"])}})
+            history.append(assistant)
+            for index, call in enumerate(calls):
+                handler, output_type = handlers[call["name"]]
+                try:
+                    raw = handler(**call["arguments"])
+                    adapter = TypeAdapter(output_type)
+                    result = adapter.dump_python(adapter.validate_python(raw, strict=True), mode="json")
+                except ValidationError:
+                    raise InferenceError("Backend tool returned an invalid typed result") from None
+                excerpt = _tool_result_excerpt(result)
+                tool_message = {"role": "tool", "tool_call_id": f"call_{rounds}_{index}",
+                                "content": _data(excerpt)}
+                while _tokens(history + [tool_message], tools) + 1024 + 64 > CONTEXT:
+                    items = excerpt.get("sources") if isinstance(excerpt, dict) else excerpt
+                    if not isinstance(items, list) or len(items) < 2:
+                        raise InferenceError("Tool result excerpt exceeds the inference context budget")
+                    del items[len(items) // 2:]
+                    tool_message["content"] = _data({"excerpt": True, "result": excerpt})
+                history.append(tool_message)
