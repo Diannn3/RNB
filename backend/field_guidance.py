@@ -108,6 +108,9 @@ def explain_field(structure, field):
     if entry['protected'] or field.get('protected'):
         text += ' Leave this field blank in PapelLess; it is not an answer to prepare here.'
     else:
+        slot = source_slot(structure, field)
+        if field.get('type') == 'checkbox' and slot:
+            text += f" For this checkbox, answer Yes to select {slot.get('text', entry['label'])}, or No to leave it unchecked."
         if entry.get('format'):
             text += ' ' + entry['format']
         if entry.get('options'):
@@ -123,5 +126,9 @@ def explain_field(structure, field):
 def grounded_question(structure, field):
     _, entry = match_field(structure, field)
     if entry and not entry['protected'] and not field.get('protected'):
+        if field.get('type') == 'checkbox':
+            slot = source_slot(structure, field)
+            label = slot.get('text') or slot.get('field_name') or entry['label']
+            return f"For {entry['label']}, should this draft select {label}? Answer Yes or No."
         return entry['question']
     return None

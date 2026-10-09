@@ -4,6 +4,7 @@ from difflib import SequenceMatcher
 import json
 from pathlib import Path
 import re
+from .field_guidance import explain_field, is_field_help, matches_field_query
 
 
 LABEL = "Demo — not official government advice"
@@ -19,7 +20,8 @@ def _reply(message, status, citations=None):
             "status": status, "citations": citations or []}
 
 
-def explain(query: str, structure: dict | None = None) -> dict:
+def explain(query: str, structure: dict | None = None, field: dict | None = None,
+            field_requested: bool = False) -> dict:
     """Look up a service term or identify a selected form from extracted text."""
     unsupported = ("The local demo corpus does not cover that request. Ask about DSWD AICS, "
                    "Pantawid data requests, SSS membership or E-1, or PhilHealth membership or PMRF. "
@@ -27,6 +29,8 @@ def explain(query: str, structure: dict | None = None) -> dict:
     if not isinstance(query, str) or not query.strip() or len(query) > 300:
         return _reply(unsupported, "abstained")
     request = query.strip().lower().rstrip(".?!").strip()
+    if field_requested or is_field_help(query):
+        return _reply(*explain_field(structure, field))
     entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
     if re.fullmatch(r"(?:please )?(?:(?:can|could) you )?explain (?:this|the) form", request):
         if structure is None:
@@ -73,6 +77,8 @@ def explain(query: str, structure: dict | None = None) -> dict:
                 candidates.clear()
                 best = score
             candidates.append(entry)
+    if not candidates and field and matches_field_query(query, structure, field):
+        return _reply(*explain_field(structure, field))
     return _explanation(candidates, unsupported)
 
 

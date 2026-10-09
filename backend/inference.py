@@ -293,6 +293,9 @@ def ask_question(field, skill):
     instruction = (f"Return JSON with question: one concise {LANGUAGE} natural-language question "
                    "about this single field, not several questions. "
                    + LANGUAGE_PROMPT +
+                   "Use the supplied form title and original source label/context. "
+                   "Never invent a purpose such as a job application from a generic label. "
+                   "When meaning is unclear, ask neutrally for the value of the printed label. "
                    "Include allowed options if applicable. Ask only for synthetic "
                    "applicant-answerable data.")
     with _LOCK:
