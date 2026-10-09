@@ -329,3 +329,115 @@ def inspect_document(path: Path, document_id: str) -> dict:
         widget["protected"] |= any(_intersects(widget["rect"], region) for region in page["protected_regions"])
     return {"document_id": document_id, "document_kind": kind, "page_count": len(pages),
             "pages": pages, "widgets": widgets, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+
+
+def _mapping_candidate(structure, candidate):
+    if not isinstance(candidate, dict) or not isinstance(candidate.get("fields"), list):
+        raise ValueError("Malformed mapping candidate")
+    targets = {widget["id"]: widget for widget in structure["widgets"]}
+    for page in structure["pages"]:
+        targets.update({box["id"]: {**box, "page": page["page"]} for box in page["boxes"] if box["source"] == "layout"})
+    names, used, fields = set(), set(), []
+    for field in candidate["fields"]:
+        if not isinstance(field, dict) or not isinstance(field.get("name"), str) or not _NAME.fullmatch(field["name"]):
+            raise ValueError("Invalid logical field name")
+        if field["name"] in names or not isinstance(field.get("label"), str) or not isinstance(field.get("required"), bool):
+            raise ValueError("Duplicate or malformed logical field")
+        names.add(field["name"])
+        keys = [key for key in ("widget_id", "box_id") if field.get(key) is not None]
+        if len(keys) != 1 or not isinstance(field[keys[0]], str) or field[keys[0]] not in targets:
+            raise ValueError("Unknown mapping target")
+        key, target = keys[0], targets[field[keys[0]]]
+        if (key == "widget_id") != ("field_name" in target):
+            raise ValueError("Mapping target kind mismatch")
+        identity = target.get("field_name", target["id"])
+        if identity in used:
+            raise ValueError("Duplicate mapping target")
+        used.add(identity)
+        page = structure["pages"][target["page"]]
+        _valid_rect(field.get("rect"), page)
+        if field.get("page") != target["page"] or field["rect"] != target["rect"]:
+            raise ValueError("Mapping geometry is not grounded in extracted structure")
+        if field.get("type") != target["type"] or field.get("options") != target["options"]:
+            raise ValueError("Mapping type or options mismatch")
+        if not isinstance(field.get("protected"), bool) or field["protected"] != target["protected"]:
+            raise ValueError("Mapping protection mismatch")
+        if any(prior["page"] == field["page"] and _intersects(prior["rect"], field["rect"]) for prior in fields):
+            raise ValueError("Mapped fields overlap")
+        if key == "box_id" and any(widget["page"] == field["page"] and _intersects(widget["rect"], field["rect"]) for widget in structure["widgets"]):
+            raise ValueError("Overlay mapping overlaps a form widget")
+        fields.append(dict(field))
+    return {"rank": candidate["rank"], "fields": fields}
+
+
+def validate_mapping(structure: dict, candidates: list) -> dict:
+    if not isinstance(candidates, list):
+        raise ValueError("Mapping candidates must be a list")
+    ranked = [candidate for candidate in candidates if isinstance(candidate, dict)
+              and isinstance(candidate.get("rank"), (float, int)) and not isinstance(candidate["rank"], bool)
+              and math.isfinite(candidate["rank"])]
+    for candidate in sorted(ranked, key=lambda item: item["rank"], reverse=True):
+        try:
+            return _mapping_candidate(structure, candidate)
+        except (ValueError, KeyError, TypeError, IndexError):
+            continue
+    raise ValueError("No structurally valid mapping candidate")
+
+
+def render_preview(path: Path, destination: Path, page: int = 0) -> None:
+    reader = _reader(path)
+    if isinstance(page, bool) or not isinstance(page, int) or not 0 <= page < len(reader.pages):
+        raise ValueError("Invalid preview page")
+    if destination.resolve() == path.resolve():
+        raise ValueError("Preview cannot overwrite source")
+    try:
+        with _PDFIUM_LOCK, pdfium.PdfDocument(str(path)) as document:
+            document.init_forms()
+            rendered = document[page]
+            try:
+                bitmap = rendered.render(scale=1.5)
+                try:
+                    image = bitmap.to_pil()
+                    image.save(destination, format="PNG")
+                    image.close()
+                finally:
+                    bitmap.close()
+            finally:
+                rendered.close()
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("PDF preview rendering failed") from exc
+
+
+def _write_values(structure, mapping, values):
+    fields = {field["name"]: field for field in mapping["fields"]}
+    if not isinstance(values, dict) or any(name not in fields for name in values):
+        raise ValueError("Unknown supplied field")
+    widgets = {widget["id"]: widget for widget in structure["widgets"]}
+    supplied = []
+    for name, value in values.items():
+        field = fields[name]
+        if not isinstance(value, str):
+            raise ValueError("Field values must be strings")
+        if not value:
+            continue
+        if field["protected"] or structure["document_kind"] == "annex_b":
+            raise ValueError("Protected fields cannot be populated")
+        if field["type"] not in {"text", "checkbox", "radio", "choice"}:
+            raise ValueError("Unsupported writable field type")
+        if any(ord(character) < 32 for character in value):
+            raise ValueError("Multiline or control-character field values are unsupported")
+        try:
+            value.encode("cp1252")
+        except UnicodeError as exc:
+            raise ValueError("Field value is unsupported by the form font") from exc
+        if field["type"] in {"checkbox", "radio", "choice"} and value not in field["options"]:
+            raise ValueError("Unknown field option")
+        if "widget_id" in field and widgets[field["widget_id"]]["max_length"] and len(value) > widgets[field["widget_id"]]["max_length"]:
+            raise ValueError("Field value exceeds widget length")
+        rect = field["rect"]
+        if field["type"] == "text" and (rect[3] - rect[1] < 9 or stringWidth(value, "Helvetica", 9) > rect[2] - rect[0] - 2):
+            raise ValueError("Field value overflows its writable region")
+        supplied.append((field, value))
+    return supplied
