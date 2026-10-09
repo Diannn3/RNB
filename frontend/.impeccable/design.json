@@ -1,0 +1,366 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T13:38:39.253Z",
+  "title": "PapelLess visual contract",
+  "extensions": {
+    "scope": "Approved landing hero and header. Five preview components only; retained global colors are metadata, not a refreshed lower-page or workspace system.",
+    "colorMeta": {
+      "ink": {
+        "displayName": "Ink",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0067 258.37)",
+          "oklch(26% 0.0067 258.37)",
+          "oklch(38% 0.0067 258.37)",
+          "oklch(49% 0.0067 258.37)",
+          "oklch(61% 0.0067 258.37)",
+          "oklch(72% 0.0067 258.37)",
+          "oklch(84% 0.0067 258.37)",
+          "oklch(95% 0.0067 258.37)"
+        ]
+      },
+      "paper": {
+        "displayName": "Paper",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0026 106.45)",
+          "oklch(26% 0.0026 106.45)",
+          "oklch(38% 0.0026 106.45)",
+          "oklch(49% 0.0026 106.45)",
+          "oklch(61% 0.0026 106.45)",
+          "oklch(72% 0.0026 106.45)",
+          "oklch(84% 0.0026 106.45)",
+          "oklch(95% 0.0026 106.45)"
+        ]
+      },
+      "white": {
+        "displayName": "White",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(26% 0.0000 0.00)",
+          "oklch(38% 0.0000 0.00)",
+          "oklch(49% 0.0000 0.00)",
+          "oklch(61% 0.0000 0.00)",
+          "oklch(72% 0.0000 0.00)",
+          "oklch(84% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "muted": {
+        "displayName": "Muted",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0121 261.77)",
+          "oklch(26% 0.0121 261.77)",
+          "oklch(38% 0.0121 261.77)",
+          "oklch(49% 0.0121 261.77)",
+          "oklch(61% 0.0121 261.77)",
+          "oklch(72% 0.0121 261.77)",
+          "oklch(84% 0.0121 261.77)",
+          "oklch(95% 0.0121 261.77)"
+        ]
+      },
+      "border": {
+        "displayName": "Border",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0046 258.33)",
+          "oklch(26% 0.0046 258.33)",
+          "oklch(38% 0.0046 258.33)",
+          "oklch(49% 0.0046 258.33)",
+          "oklch(61% 0.0046 258.33)",
+          "oklch(72% 0.0046 258.33)",
+          "oklch(84% 0.0046 258.33)",
+          "oklch(95% 0.0046 258.33)"
+        ]
+      },
+      "graphite": {
+        "displayName": "Graphite",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0044 264.46)",
+          "oklch(26% 0.0044 264.46)",
+          "oklch(38% 0.0044 264.46)",
+          "oklch(49% 0.0044 264.46)",
+          "oklch(61% 0.0044 264.46)",
+          "oklch(72% 0.0044 264.46)",
+          "oklch(84% 0.0044 264.46)",
+          "oklch(95% 0.0044 264.46)"
+        ]
+      },
+      "blue": {
+        "displayName": "Evidence blue",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.1550 262.98)",
+          "oklch(26% 0.1550 262.98)",
+          "oklch(38% 0.1550 262.98)",
+          "oklch(49% 0.1550 262.98)",
+          "oklch(61% 0.1550 262.98)",
+          "oklch(72% 0.1550 262.98)",
+          "oklch(84% 0.1550 262.98)",
+          "oklch(95% 0.1550 262.98)"
+        ]
+      },
+      "amber": {
+        "displayName": "Attention amber",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0950 65.96)",
+          "oklch(26% 0.0950 65.96)",
+          "oklch(38% 0.0950 65.96)",
+          "oklch(49% 0.0950 65.96)",
+          "oklch(61% 0.0950 65.96)",
+          "oklch(72% 0.0950 65.96)",
+          "oklch(84% 0.0950 65.96)",
+          "oklch(95% 0.0950 65.96)"
+        ]
+      },
+      "green": {
+        "displayName": "Reviewed green",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0761 164.90)",
+          "oklch(26% 0.0761 164.90)",
+          "oklch(38% 0.0761 164.90)",
+          "oklch(49% 0.0761 164.90)",
+          "oklch(61% 0.0761 164.90)",
+          "oklch(72% 0.0761 164.90)",
+          "oklch(84% 0.0761 164.90)",
+          "oklch(95% 0.0761 164.90)"
+        ]
+      },
+      "hero-surface": {
+        "displayName": "Hero raised surface",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0028 128.49)",
+          "oklch(26% 0.0028 128.49)",
+          "oklch(38% 0.0028 128.49)",
+          "oklch(49% 0.0028 128.49)",
+          "oklch(61% 0.0028 128.49)",
+          "oklch(72% 0.0028 128.49)",
+          "oklch(84% 0.0028 128.49)",
+          "oklch(95% 0.0028 128.49)"
+        ]
+      },
+      "hero-glass": {
+        "displayName": "Hero glass",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(26% 0.0000 0.00)",
+          "oklch(38% 0.0000 0.00)",
+          "oklch(49% 0.0000 0.00)",
+          "oklch(61% 0.0000 0.00)",
+          "oklch(72% 0.0000 0.00)",
+          "oklch(84% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "hero-panel-border": {
+        "displayName": "Hero panel border",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0060 239.83)",
+          "oklch(26% 0.0060 239.83)",
+          "oklch(38% 0.0060 239.83)",
+          "oklch(49% 0.0060 239.83)",
+          "oklch(61% 0.0060 239.83)",
+          "oklch(72% 0.0060 239.83)",
+          "oklch(84% 0.0060 239.83)",
+          "oklch(95% 0.0060 239.83)"
+        ]
+      },
+      "focus": {
+        "displayName": "Keyboard focus",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.1407 262.15)",
+          "oklch(26% 0.1407 262.15)",
+          "oklch(38% 0.1407 262.15)",
+          "oklch(49% 0.1407 262.15)",
+          "oklch(61% 0.1407 262.15)",
+          "oklch(72% 0.1407 262.15)",
+          "oklch(84% 0.1407 262.15)",
+          "oklch(95% 0.1407 262.15)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Existing body family",
+        "purpose": "Locally hosted shared font; incumbent body scale is retained."
+      },
+      "hero-display": {
+        "displayName": "Hero display",
+        "purpose": "Two-line hero heading; responsive sizes are recorded in DESIGN.md."
+      },
+      "hero-body": {
+        "displayName": "Hero supporting copy",
+        "purpose": "Muted explanatory paragraph, 16px at mobile."
+      },
+      "hero-action": {
+        "displayName": "Hero action",
+        "purpose": "Primary and secondary hero links."
+      },
+      "hero-source": {
+        "displayName": "Hero source quote",
+        "purpose": "The illustrative supporting passage."
+      }
+    },
+    "shadows": [
+      {
+        "name": "hero-raised",
+        "value": "8px 8px 20px #17191c12, -8px -8px 20px #fff",
+        "purpose": "Secondary hero action and header workspace link."
+      },
+      {
+        "name": "hero-panel",
+        "value": "6px 8px 22px #17191c0c, -4px -4px 16px #fff9",
+        "purpose": "Source and pending review panels only."
+      },
+      {
+        "name": "hero-primary",
+        "value": "5px 6px 14px #17191c20, -5px -5px 16px #fff",
+        "purpose": "Primary sample action."
+      },
+      {
+        "name": "hero-paper",
+        "value": "8px 12px 28px #17191c14, -6px -6px 20px #fff",
+        "purpose": "Upright shared paper preview in hero."
+      }
+    ],
+    "motion": [
+      {
+        "name": "hero-line-reveal",
+        "value": "0.55s, stagger 0.08s, expo.out, yPercent 105 to rest",
+        "purpose": "GSAP headline entrance when reduced motion is not requested."
+      },
+      {
+        "name": "hero-art-entrance",
+        "value": "0.65s, expo.out, translateY 12px to rest",
+        "purpose": "GSAP hero art entrance."
+      },
+      {
+        "name": "hero-action-state",
+        "value": "0.18s; hover translateY(-1px); active translateY(1px)",
+        "purpose": "Existing action transition; reduced motion uses 0.01ms."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "hero-stack",
+        "value": "1100px"
+      },
+      {
+        "name": "hero-mobile",
+        "value": "600px"
+      },
+      {
+        "name": "header-wordmark-compact",
+        "value": "380px"
+      }
+    ],
+    "grid": {
+      "period": "48px",
+      "strokeWidth": "1px",
+      "opacity": 0.1,
+      "lightColor": "var(--ink)",
+      "darkColor": "var(--paper)",
+      "scope": "Each landing header, section, and footer; decorative, pointer-events none, aria-hidden."
+    },
+    "glass": {
+      "scope": "Hero source and pending review only",
+      "background": "{colors.hero-glass}",
+      "fallback": "{colors.white}",
+      "backdropFilter": "blur(12px)",
+      "supportGate": "backdrop-filter or -webkit-backdrop-filter"
+    },
+    "previewMetadata": {
+      "tonalRamps": "Synthesized OKLCH preview ramps only; frontmatter colors remain the normative implementation values."
+    }
+  },
+  "components": [
+    {
+      "name": "Hero primary action",
+      "kind": "button",
+      "refersTo": "hero-primary",
+      "description": "Try the sample; links to the existing fictional sample workspace.",
+      "html": "<a class=\"ds-hero-primary\" href=\"/app/sample\">Try the sample <svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M5 12h14m-7-7 7 7-7 7\"/></svg></a>",
+      "css": ".ds-hero-primary{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;padding:13px 18px;border:1px solid;border-radius:10px;font:600 14px/1.5 'Plus Jakarta Sans Variable', sans-serif;text-decoration:none;text-align:center;white-space:normal;transition:background .18s,color .18s,transform .18s}.ds-hero-primary:hover{transform:translateY(-1px)}.ds-hero-primary:active{transform:translateY(1px)}.ds-hero-primary:focus-visible{outline:3px solid var(--focus,#507dd3);outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-hero-primary{transition-duration:.01ms}}.ds-hero-primary{background:var(--ink,#17191c);color:#fff;border-color:var(--ink,#17191c);box-shadow:5px 6px 14px #17191c20,-5px -5px 16px #fff}.ds-hero-primary:hover{background:#34373c}"
+    },
+    {
+      "name": "Hero secondary action",
+      "kind": "button",
+      "refersTo": "hero-secondary",
+      "description": "Start with a form; raised pale action links to the workspace.",
+      "html": "<a class=\"ds-hero-secondary\" href=\"/app\">Start with a form</a>",
+      "css": ".ds-hero-secondary{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;padding:13px 18px;border:1px solid;border-radius:10px;font:600 14px/1.5 'Plus Jakarta Sans Variable', sans-serif;text-decoration:none;text-align:center;white-space:normal;transition:background .18s,color .18s,transform .18s}.ds-hero-secondary:hover{transform:translateY(-1px)}.ds-hero-secondary:active{transform:translateY(1px)}.ds-hero-secondary:focus-visible{outline:3px solid var(--focus,#507dd3);outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-hero-secondary{transition-duration:.01ms}}.ds-hero-secondary{background:#f2f3f1;color:var(--ink,#17191c);border-color:var(--border,#e0e2e5);box-shadow:8px 8px 20px #17191c12, -8px -8px 20px #fff}.ds-hero-secondary:hover{background:#e9ebe7}"
+    },
+    {
+      "name": "Header navigation",
+      "kind": "nav",
+      "refersTo": "header-navigation",
+      "description": "Mechanism anchor and raised Open workspace action; mobile keeps the launch link.",
+      "html": "<nav class=\"ds-header-nav\" aria-label=\"Main navigation\"><a href=\"#how-it-works\">How it works</a><a class=\"ds-nav-launch\" href=\"/app\">Open workspace <svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><path d=\"M6 18 18 6M6 6h12v12\"/></svg></a></nav>",
+      "css": ".ds-header-nav{display:flex;align-items:center;gap:28px;color:var(--ink,#17191c);font:400 14px 'Plus Jakarta Sans Variable', sans-serif}.ds-header-nav>a{display:inline-flex;align-items:center;min-height:44px;text-decoration:none;color:inherit}.ds-header-nav .ds-nav-launch{gap:10px;padding:11px 16px;background:#f2f3f1;border:1px solid var(--border,#e0e2e5);border-radius:10px;box-shadow:8px 8px 20px #17191c12, -8px -8px 20px #fff}.ds-header-nav>a:hover{text-decoration:underline;text-underline-offset:4px}.ds-nav-launch:active{transform:translateY(1px)}.ds-header-nav>a:focus-visible{outline:3px solid #507dd3;outline-offset:4px}@media(max-width:600px){.ds-header-nav{gap:12px;flex-wrap:wrap;font-size:12px}.ds-header-nav>a:first-child{display:none}.ds-header-nav .ds-nav-launch{padding:10px 12px}}"
+    },
+    {
+      "name": "Hero source panel",
+      "kind": "card",
+      "refersTo": "hero-source-panel",
+      "description": "Static fictional supporting record with legible source quote and page metadata.",
+      "html": "<aside class=\"ds-source-panel\" aria-label=\"Fictional supporting record\"><span class=\"ds-source-title\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M8 13h8M8 17h8\"/></svg> Student record.pdf</span><p class=\"ds-source-label\">Supporting passage</p><blockquote>Full name: Alex Reyes</blockquote><div class=\"ds-source-line\"></div><small>Fictional sample. Page 1.</small></aside>",
+      "css": ".ds-source-panel{background:#fff;color:var(--ink,#17191c);border:1px solid #d9dde0;border-radius:12px;box-shadow:6px 8px 22px #17191c0c, -4px -4px 16px #fff9;font-family:'Plus Jakarta Sans Variable', sans-serif}@supports((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.ds-source-panel{background:rgb(255 255 255 / 82%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}}.ds-source-panel{padding:20px}.ds-source-title{display:flex;align-items:flex-start;gap:9px;font-size:12px;overflow-wrap:anywhere}.ds-source-title svg{flex-shrink:0;margin-top:2px}.ds-source-label{font-size:12px;color:var(--muted,#62666d);margin:24px 0 8px;line-height:1.75}.ds-source-panel blockquote{margin:0;font-size:19px;font-weight:500;line-height:1.5}.ds-source-line{height:1px;background:var(--border,#e0e2e5);margin:20px 0 14px}.ds-source-panel small{font-size:12px;line-height:1.6;color:var(--muted,#62666d)}"
+    },
+    {
+      "name": "Hero pending review panel",
+      "kind": "card",
+      "refersTo": "hero-review-panel",
+      "description": "Static neutral preview awaiting the user's review; the clock is decorative.",
+      "html": "<section class=\"ds-review-panel\" aria-label=\"Pending review\"><span class=\"ds-review-clock\" aria-hidden=\"true\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6h4\"/></svg></span><div><strong>Alex Reyes</strong><span class=\"ds-review-status\">Ready for your review</span></div></section>",
+      "css": ".ds-review-panel{background:#fff;color:var(--ink,#17191c);border:1px solid #d9dde0;border-radius:12px;box-shadow:6px 8px 22px #17191c0c, -4px -4px 16px #fff9;font-family:'Plus Jakarta Sans Variable', sans-serif}@supports((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.ds-review-panel{background:rgb(255 255 255 / 82%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}}.ds-review-panel{display:flex;align-items:flex-start;padding:18px;gap:12px}.ds-review-clock{width:34px;height:34px;display:grid;place-items:center;flex-shrink:0;border:1px solid var(--border,#e0e2e5);border-radius:10px;color:var(--muted,#62666d)}.ds-review-panel strong{display:block;font-size:14px;font-weight:700;line-height:1.5}.ds-review-status{display:block;margin-top:5px;font-size:12px;line-height:1.6;color:var(--muted,#62666d)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Paper light hero and header",
+    "overview": "This approved update records the implemented landing hero and header only. Paper surfaces, ink typography, shallow paired shadows, and bounded glass panels make the fictional form, source, and pending review readable in the first viewport. The supplied black PNG wordmark keeps its custom letterforms; the hero uses no mascot.\n\nThe following incumbent contract remains in force for the lower showcase and document workspace. The new hero materials do not redefine their component systems.",
+    "keyCharacteristics": [
+      "Paper light hero and header with local Plus Jakarta Sans.",
+      "Upright shared form beside a source and neutral pending review rail.",
+      "Shallow paired shadows and bounded glass with an opaque fallback.",
+      "Responsive stacking and native scrolling."
+    ],
+    "rules": [
+      {
+        "name": "The Pending Review Rule",
+        "body": "The hero review remains neutral and says \"Ready for your review\"; green continues to mean reviewed, with text.",
+        "section": "colors"
+      },
+      {
+        "name": "The Neutral Grid Rule",
+        "body": "The existing landing grid repeats every 48px with a 1px stroke and 0.1 opacity. Each header, landing section, and footer owns its non-interactive grid; light sections use ink and dark sections use paper. This approved grid treatment is the only shared landing decoration recorded by this update.",
+        "section": "layout"
+      },
+      {
+        "name": "The Bounded Glass Rule",
+        "body": "Only source and review panels use white at 82% opacity and a 12px backdrop blur, gated by feature support. Their default is opaque white with a visible panel border. Glass does not extend to the full hero, header, or shared form.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve the supplied black PNG wordmark and locally hosted Plus Jakarta Sans in the hero and header.",
+      "Do keep the two-line hero heading and the \"Try the sample\" primary / \"Start with a form\" secondary hierarchy.",
+      "Do keep the shared form upright and the source and pending review panels legible in normal document flow.",
+      "Do retain the bounded glass fallback, neutral grid, visible focus, and reduced-motion behavior.",
+      "Do keep the incumbent lower-section and workspace visual contract in force."
+    ],
+    "donts": [
+      "Don't add a mascot to the hero or redraw the supplied wordmark.",
+      "Don't present the hero's pending review as a completed green approval.",
+      "Don't extend the hero glass, paired shadows, or responsive composition into workspace components as a new global rule."
+    ]
+  }
+}
