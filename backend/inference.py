@@ -169,7 +169,7 @@ class Fact(Target):
     name: str = Field(pattern=r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
     value: str = Field(min_length=1, max_length=1000)
     document_id: str
-    page: int = Field(ge=1)
+    page: int = Field(ge=0)
     confidence: float = Field(ge=0, le=1)
 
 
@@ -203,6 +203,12 @@ def _sources(structure, writable=False):
     for page in structure["pages"]:
         for box in page["boxes"]:
             if writable and (box.get("source") != "layout" or box.get("protected")):
+                continue
+            if writable and any(
+                    widget["page"] == page["page"]
+                    and min(box["rect"][2], widget["rect"][2]) > max(box["rect"][0], widget["rect"][0])
+                    and min(box["rect"][3], widget["rect"][3]) > max(box["rect"][1], widget["rect"][1])
+                    for widget in structure.get("widgets", [])):
                 continue
             sources.append({**box, "page": page["page"], "box_id": box["id"]})
     return sources
@@ -286,7 +292,8 @@ def map_form(structure, skill):
             targets = [field.get("box_id") or field.get("widget_id") for field in fields]
             if len(set(names)) != len(names) or len(set(targets)) != len(targets):
                 continue
-            result.append({"rank": index + 1, "fields": fields})
+            # PDF validation selects the greatest rank; model preference rank 1 is best.
+            result.append({"rank": 3 - index, "fields": fields})
         if not result:
             raise InferenceError("Local model produced no valid nonduplicated mapping")
         return result

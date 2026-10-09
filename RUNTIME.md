@@ -51,6 +51,8 @@ The tool runner takes seven allowlisted names only; each handler registration is
 
 ```sh
 .venv/bin/python - <<'PY'
+from pathlib import Path
+from backend.pdf_service import inspect_document as inspect_pdf
 from backend.inference import StrictModel, health, run_tools
 class Inspection(StrictModel):
     document_id: str
@@ -59,7 +61,9 @@ class Inspection(StrictModel):
 calls = []
 def inspect_document(document_id):
     calls.append(document_id)
-    return Inspection(document_id=document_id, document_kind="synthetic", page_count=1)
+    path = Path("skills/medical-form-assistant/assets/forms/philhealth-pmrf-012020.pdf")
+    structure = inspect_pdf(path, document_id)
+    return Inspection(**{name: structure[name] for name in Inspection.model_fields})
 print(health())
 result = run_tools(
     [{"role": "user", "content": "Call inspect_document(document_id='doc-demo') exactly once. Then report its page count. Do not guess without calling the tool."}],
@@ -82,5 +86,7 @@ Also run `python -m unittest tests.test_inference` and exercise `map_form`,
 `ask_question` and `extract_facts` against extracted fixture structures. Direct
 operations use schema-constrained JSON; mappings derive geometry/options from
 actual source targets, not model-generated coordinates. PDF validation remains
-the final export gate. Record actual-model latency and memory measurements after
+the final export gate. All page/provenance numbers are zero-based. Public candidate
+ranks use highest numeric rank as best. Layout regions overlapping widgets are
+excluded from proposals. Record actual-model latency and memory measurements after
 these checks; no model inference/performance check was performed during provisioning.
