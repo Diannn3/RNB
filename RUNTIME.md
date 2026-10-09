@@ -39,7 +39,7 @@ export PATH="$PWD/.runtime/tesseract/usr/bin:$PWD/.venv/bin:$PATH"
 export LD_LIBRARY_PATH="$PWD/.runtime/tesseract/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export TESSDATA_PREFIX="$PWD/.runtime/tesseract/usr/share/tessdata"
 export PAPELLESS_LLAMA_URL=http://127.0.0.1:8081
-.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
 ## Integration checks (run after implementation)
@@ -51,7 +51,7 @@ The tool runner takes seven allowlisted names only; each handler registration is
 
 ```sh
 .venv/bin/python - <<'PY'
-from inference import StrictModel, health, run_tools
+from backend.inference import StrictModel, health, run_tools
 class Inspection(StrictModel):
     document_id: str
     document_kind: str
@@ -78,7 +78,7 @@ format using restricted AST literal parsing, never code execution. Unknown tools
 extra arguments, cross-workspace IDs and invalid typed outputs are errors.
 There are at most three executed tool rounds and one argument/parsing retry.
 
-Also run `python -m unittest test_inference` and exercise `map_form`,
+Also run `python -m unittest tests.test_inference` and exercise `map_form`,
 `ask_question` and `extract_facts` against extracted fixture structures. Direct
 operations use schema-constrained JSON; mappings derive geometry/options from
 actual source targets, not model-generated coordinates. PDF validation remains
