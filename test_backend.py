@@ -1,0 +1,101 @@
+"""Run against real local inference: .venv/bin/python test_backend.py."""
+import hashlib
+import io
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import time
+
+import httpx
+from pypdf import PdfReader
+from reportlab.pdfgen import canvas
+
+BASE = 'http://127.0.0.1:8765/api/v1'
+
+
+def start(directory):
+    process = subprocess.Popen([str(Path('.venv/bin/python').resolve()), '-m', 'uvicorn',
+        'main:app', '--host', '127.0.0.1', '--port', '8765', '--no-access-log'],
+        env={**os.environ, 'PAPELLESS_DATA': directory},
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(100):
+        if process.poll() is not None:
+            raise RuntimeError('API exited during startup')
+        try:
+            if httpx.get(BASE + '/workspaces/missing', timeout=1).status_code == 404:
+                return process
+        except httpx.ConnectError:
+            pass
+        time.sleep(0.1)
+    process.terminate()
+    raise RuntimeError('API startup timed out')
+
+
+def synthetic_form():
+    output = io.BytesIO()
+    c = canvas.Canvas(output)
+    c.drawString(50, 780, 'SYNTHETIC patient intake — demo only')
+    for name, label, y in [('patient_name', 'Patient name (required)', 700),
+                           ('birth_date', 'Date of birth YYYY-MM-DD (required)', 620),
+                           ('provider_signature', 'Provider signature — leave untouched', 540)]:
+        c.drawString(50, y + 25, label)
+        c.acroForm.textfield(name=name, tooltip=label, x=50, y=y, width=280, height=22,
+                             fieldFlags='required' if name != 'provider_signature' else '')
+    c.save()
+    return output.getvalue()
+
+
+def test_backend():
+    with tempfile.TemporaryDirectory() as directory, httpx.Client(timeout=240) as client:
+        process = start(directory)
+        def post(route, **kwargs):
+            response = client.post(BASE + route, **kwargs)
+            assert response.is_success, (route, response.status_code, response.text)
+            return response.json()
+        try:
+            workspace = post('/workspaces')['id']
+            prefix = f'/workspaces/{workspace}'
+            content = synthetic_form()
+            uploaded = post(prefix + '/documents', files={'file': ('untrusted.pdf', content, 'application/pdf')})
+            document = uploaded['document']['id']
+            structure = client.get(BASE + f'/documents/{document}/structure').json()
+            assert structure['page_count'] == 1
+            protected = [w for w in structure['widgets'] if w['protected']]
+            assert any(w['id'] == 'provider_signature' for w in protected)
+            result = post(prefix + '/messages', json={'document_id': document})
+            assert result['status'] == 'needs_input'
+            assert result['assistant_message'].count('?') == 1
+            partial = post(prefix + '/messages', json={'finalize': True})
+            assert partial['status'] == 'completed' and partial['missing_fields']
+            response = client.post(BASE + partial['export_url'])
+            assert response.is_success
+            reader = PdfReader(io.BytesIO(response.content))
+            assert all(not f.get('/V') for f in reader.get_fields().values())
+            assert client.get(BASE + partial['preview_url']).headers['content-type'] == 'image/png'
+            assert client.get(BASE + f'/artifacts/{document}').content == content
+            covered = post(prefix + '/explanations', json={'query': 'amino acids'})
+            assert covered['status'] == 'completed' and covered['citations'][0]['term'] == 'Amino Acids'
+            assert post(prefix + '/explanations', json={'query': 'quantum healing'})['status'] == 'abstained'
+            invalid = client.post(BASE + prefix + '/drafts', json={'document_id': document,
+                'values': {'provider_signature': 'forbidden'}})
+            assert invalid.status_code == 422
+            invalid = client.post(BASE + prefix + '/documents', files={'file': ('bad.pdf', b'not a PDF')})
+            assert invalid.status_code == 422
+            oversized = client.post(BASE + prefix + '/documents', files={'file': ('large.pdf', b'%PDF-' + b'x' * (10 * 1024 * 1024))})
+            assert oversized.status_code == 413
+            process.terminate()
+            process.wait(timeout=10)
+            process = start(directory)
+            assert client.get(BASE + f'/artifacts/{document}').content == content
+            assert client.get(BASE + partial['preview_url']).status_code == 200
+            assert client.post(BASE + partial['export_url']).content == response.content
+            assert client.get(BASE + f'/requests/{partial["request_id"]}').json()['status'] == 'completed'
+            print('Actual local model: one-question turn, partial blank export, protection, errors, citations, restart persistence verified.')
+        finally:
+            process.terminate()
+            process.wait(timeout=10)
+
+
+if __name__ == '__main__':
+    test_backend()
