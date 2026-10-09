@@ -28,6 +28,6 @@ Both direct draft creation and conversation finalization may produce partial dra
 
 SQLite metadata and artifact files persist across restarts. Conversation answers, mappings, pending questions and conflict progress are working memory and are lost on restart. Frontend state does not promise durable chat restoration. The API has no delete endpoint, so clearing local UI cannot erase server resources.
 
-Health reports API/database/inference separately. Inference-unavailable errors are real failures, not an invitation to manual or sample fallback. Upload, structure, saved artifacts and corpus explanations do not require inference. Explanations retain official-source citations and the demo-not-official-advice caveat; they abstain outside the corpus.
+Health reports API/database/inference separately. Inference-unavailable errors are real failures, not an invitation to manual or sample fallback. Upload, structure and saved artifacts do not require inference. Explanations require local inference: the model chooses scoped literal grep-style corpus searches and synthesizes retrieved evidence in English, without embeddings, web or shell access. They retain official-source citations and the demo-not-official-advice caveat and abstain outside the corpus.
 
 This integration pass runs no tests, backend startup or model calls. Build and manual review are the integration owner's checks; previous workflow receipts are not evidence for this cutover.

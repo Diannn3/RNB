@@ -16,7 +16,7 @@ Local-first API for Philippine government-form preparation, sourced service expl
 | OCR | Tesseract 5, printed English |
 | Client | API client; no browser UI in this backend scope |
 
-Run inference and document processing locally. Select `PAPELLESS_MODEL_PROFILE=lfm` for English (default) or `qwen` for natural Taglish conversation and questions; preserve official names, source quotes, user values, JSON keys and tool arguments. Bundled deterministic explanations remain English. Keep requests sequential for the demo; serialize PDFium operations.
+Run inference and document processing locally. Select `PAPELLESS_MODEL_PROFILE=lfm` for English (default) or `qwen` for natural Taglish conversation and questions; preserve official names, source quotes, user values, JSON keys and tool arguments. Model-driven corpus explanations remain English. Keep requests sequential for the demo; serialize PDFium operations.
 
 ## 2. Demo journeys
 
@@ -33,7 +33,7 @@ Use the highest-ranked structurally valid mapping. If none is valid, return an e
 
 ### Government-service explanations
 
-Look up a phrase in the bundled official-source DSWD, SSS, and PhilHealth service corpus (`references/services.json`). Return an English explanation with an official agency citation and the label “Demo — not official government advice.” Abstain outside the corpus. No eligibility determination, benefit approval, legal advice, diagnosis, or treatment advice.
+The local model chooses literal case-insensitive grep-style searches over the bundled official-source DSWD, SSS, and PhilHealth service corpus (`references/services.json`) through `lookup_government_service`, then simplifies retrieved definitions in English. Completed explanations require retrieved evidence; the backend maps selected record IDs to official citations and includes “Demo — not official government advice.” No embeddings, web, shell, arbitrary-file access or canned fallback; unavailable inference returns an error. Abstain outside the corpus. No eligibility determination, benefit approval, legal advice, diagnosis, or treatment advice.
 
 ### Cross-document comparison
 

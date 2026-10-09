@@ -15,7 +15,7 @@ PapelLess is a monorepo with a React frontend and a Python API. Each application
 
 - Python 3 with `venv` and `pip` available.
 - Node.js 22.12+ and npm (Vite also supports Node.js 20.19+).
-- For AI-assisted conversations and document processing: a matching local model server. Model files and runtime binaries are not included in the repository; see [`RUNTIME.md`](RUNTIME.md) for the local inference and OCR setup.
+- For AI-assisted conversations, document processing, and service explanations: a matching local model server. Model files and runtime binaries are not included in the repository; see [`RUNTIME.md`](RUNTIME.md) for the local inference and OCR setup.
 
 The commands below use a Linux/macOS shell and start from the repository root. On Windows, use `py -m venv .venv` and replace `.venv/bin/python` with `.venv\Scripts\python.exe`.
 
@@ -36,7 +36,7 @@ Start the API from the repository root:
 
 The API listens at <http://127.0.0.1:8000>; interactive API documentation is at <http://127.0.0.1:8000/docs>. Use `--model lfm` instead if running the Liquid model. The flag selects the backend profile; it does **not** start the model server. Start the matching server separately using [`RUNTIME.md`](RUNTIME.md). The default inference URL is `http://127.0.0.1:8081`; override it with `PAPELLESS_LLAMA_URL` if needed.
 
-The API can start without inference: uploads, extracted structure, existing artifact downloads and corpus explanations remain available. AI-dependent operations return an explicit error when inference is unavailable; there is no remote fallback.
+The API can start without inference: uploads, extracted structure and existing artifact downloads remain available. Service explanations require inference: the local model chooses literal grep-style searches over bundled `services.json`, then simplifies retrieved evidence in English with official-source citations. Search is scoped to that corpus; no embeddings, web, shell, arbitrary files or remote fallback are available. AI-dependent operations return an explicit error when inference is unavailable, never a canned explanation.
 
 ### Frontend — terminal 2
 
