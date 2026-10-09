@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useJourney } from "./journey";
 import {
   changeField,
   approveField,
@@ -45,7 +46,8 @@ export const useSession = create<Session>((set) => ({
   page: 1,
   epoch: 0,
   dirty: false,
-  setSession: (mode, documents, fields) =>
+  setSession: (mode, documents, fields) => {
+    useJourney.getState().reset();
     set((s) => ({
       mode,
       documents,
@@ -57,7 +59,8 @@ export const useSession = create<Session>((set) => ({
       analysisRevision: undefined,
       epoch: s.epoch + 1,
       dirty: false,
-    })),
+    }));
+  },
   update: (id, value, source) =>
     set((s) => ({
       fields: s.fields.map((f) =>
@@ -88,6 +91,8 @@ export const useSession = create<Session>((set) => ({
   remove: (id) =>
     set((s) => {
       const doc = s.documents.find((d) => d.id === id);
+      if (doc?.role === "target")
+        useJourney.getState().reset();
       if (doc?.role === "target")
         return {
           documents: [],
@@ -141,7 +146,8 @@ export const useSession = create<Session>((set) => ({
         epoch: s.epoch + 1,
       };
     }),
-  clear: () =>
+  clear: () => {
+    useJourney.getState().reset();
     set((s) => ({
       mode: "manual",
       documents: [],
@@ -153,7 +159,8 @@ export const useSession = create<Session>((set) => ({
       analysisRevision: undefined,
       dirty: false,
       epoch: s.epoch + 1,
-    })),
+    }));
+  },
   applyAnalysis: (fields, analysisRevision) =>
     set((s) => ({
       fields,

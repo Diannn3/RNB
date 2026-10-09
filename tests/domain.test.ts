@@ -130,7 +130,7 @@ describe("project restoration", () => {
   });
   it("rejects unknown versions and duplicate IDs", () => {
     expect(() =>
-      projectSchema.parse({ ...project(), schemaVersion: 2 }),
+      projectSchema.parse({ ...project(), schemaVersion: 3 }),
     ).toThrow();
     expect(() =>
       projectSchema.parse({ ...project(), fields: [f, f] }),

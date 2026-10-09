@@ -177,6 +177,7 @@ const fontUrl = "/fonts/PlusJakartaSans-Regular.ttf";
 export async function exportDraft(
   target: DocumentRef,
   fields: SemanticField[],
+  policy: "reviewed" | "working" = "reviewed",
 ): Promise<Uint8Array> {
   if (["xfa", "signed", "image"].includes(target.support))
     throw new Error(
@@ -203,7 +204,8 @@ export async function exportDraft(
       throw error;
     });
   const font = await pdf.embedFont(await exportFont, { subset: true });
-  const approved = fields.filter(isApproved);
+  const included = (f: SemanticField) => policy === "working" ? !!f.value && f.state !== "conflict" && f.kind !== "unsupported" : isApproved(f);
+  const approved = fields.filter(included);
   const unreviewed = fields.filter((f) => !isApproved(f));
   const manual = approved.filter(
     (f) => f.id.startsWith("manual:") || target.support !== "fillable",
@@ -214,7 +216,7 @@ export async function exportDraft(
       if (f.kind === "unsupported") continue;
       const widget = form.getFieldMaybe(f.id);
       if (!widget) continue;
-      const value = isApproved(f) ? f.value : "";
+      const value = included(f) ? f.value : "";
       if (widget instanceof PDFTextField) widget.setText(value);
       else if (widget instanceof PDFCheckBox) {
         if (value === "Yes") widget.check();
@@ -269,14 +271,14 @@ export async function exportDraft(
     });
     y -= size + 9;
   }
-  line("PapelLess — Draft review", 23);
+  line(policy === "working" ? "PapelLess — Working preview" : "PapelLess — Draft review", 23);
   line(`Original: ${target.name}`);
   line("Prepared for your review. Not signed or submitted.");
   y -= 18;
   if (target.support === "plain")
     line("Answer sheet — the original document is unchanged.", 14);
   if (manual.length) {
-    line("Reviewed answers", 15);
+    line(policy === "working" ? "Current answers — review still required" : "Reviewed answers", 15);
     for (const f of manual) {
       line(f.label, 12);
       line(f.value);
@@ -287,12 +289,12 @@ export async function exportDraft(
   }
   if (target.support === "fillable")
     line(
-      `${approved.filter((f) => !f.id.startsWith("manual:")).length} reviewed form fields included.`,
+      `${approved.filter((f) => !f.id.startsWith("manual:")).length} ${policy === "working" ? "current" : "reviewed"} form fields included.`,
       12,
     );
   line("Unreviewed entries", 15);
   if (!unreviewed.length) line("None.");
-  else
+  else if (policy === "reviewed")
     for (const f of unreviewed)
       line(
         `${f.label}: ${f.kind === "unsupported" ? "unsupported field left unchanged" : "left blank"}.`,

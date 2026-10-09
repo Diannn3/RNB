@@ -65,16 +65,48 @@ export interface AnalysisResult {
   analysisRevision: string;
   fields: SemanticField[];
 }
+export interface ConversationMessage {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  sources?: SourceSpan[];
+}
+export interface AnswerProposal {
+  fieldId: string;
+  expectedRevision: number;
+  value: string;
+  source?: SourceSpan;
+}
+export interface InterviewTurnInput {
+  requestId: string;
+  epoch: number;
+  target: DocumentRef;
+  supporting: DocumentRef[];
+  analysisRevision?: string;
+  fields: SemanticField[];
+  messages: ConversationMessage[];
+  questionId?: string;
+  text: string;
+}
+export interface InterviewTurnResult {
+  documentHash: string;
+  analysisRevision?: string;
+  message: ConversationMessage;
+  proposals?: AnswerProposal[];
+  question?: InterviewQuestion;
+}
 export interface PaperworkAgentAdapter {
   capabilities: {
     analysis: boolean;
     model: "sample" | "unavailable" | "ready";
     route: "sample" | "none" | "local";
+    conversation?: boolean;
   };
   analyze(
     input: { target: DocumentRef; supporting: DocumentRef[] },
     signal: AbortSignal,
   ): Promise<AnalysisResult>;
+  turn?(input: InterviewTurnInput, signal: AbortSignal): Promise<InterviewTurnResult>;
 }
 export const unavailableAdapter: PaperworkAgentAdapter = {
   capabilities: { analysis: false, model: "unavailable", route: "none" },
@@ -149,6 +181,24 @@ export const sourceSchema = z.object({
     .max(100)
     .optional(),
 });
+export const messageSchema = z.object({
+  id: z.string().min(1).max(200),
+  role: z.enum(["user", "assistant"]),
+  text: z.string().max(20000),
+  sources: z.array(sourceSchema).max(20).optional(),
+});
+export const turnSchema = z.object({
+  documentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  analysisRevision: z.string().min(1).max(200).optional(),
+  message: messageSchema.extend({ role: z.literal("assistant") }),
+  proposals: z.array(z.object({
+    fieldId: z.string().min(1).max(500),
+    expectedRevision: z.number().int().nonnegative(),
+    value: z.string().max(20000),
+    source: sourceSchema.optional(),
+  })).max(100).optional(),
+  question: z.object({ fieldId: z.string().max(500), prompt: z.string().max(2000) }).optional(),
+});
 const savedField = z.object({
   id: z.string().min(1).max(500),
   label: z.string().min(1).max(500),
@@ -193,7 +243,11 @@ const savedField = z.object({
 });
 export const projectSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.union([z.literal(1), z.literal(2)]),
+    stage: z.enum(["upload", "conversation", "verification", "export"]).optional(),
+    messages: z.array(messageSchema).max(500).optional(),
+    skipped: z.array(z.string().max(500)).max(1000).optional(),
+    question: z.object({ fieldId: z.string().max(500), prompt: z.string().max(2000) }).optional(),
     mode: z.enum(["manual", "sample"]),
     documents: z
       .array(
