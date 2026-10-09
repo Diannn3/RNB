@@ -22,6 +22,33 @@
       ]
     },
     {
+      "agency": "DSWD",
+      "service": "Pantawid program data request",
+      "title": "Pantawid Pamilyang Pilipino Program Data Request Form",
+      "printed_version": "No version or date printed",
+      "official_source_url": "https://pantawid.dswd.gov.ph/wp-content/uploads/2020/07/PMED-Data-Request-Form.pdf",
+      "retrieved_on": "2026-10-10",
+      "source_pdf_page": 1,
+      "local_source_file": "backend/demo_forms/dswd-pantawid-data-request.pdf",
+      "source_kind": "Non-default uploaded blank PDF; official published PDF extracted text matches the local snapshot, visually inspected locally; byte identity not verified",
+      "requester_boundary": "Person making request: name, position, home address, telephone, mobile and email; organization/agency: name, office address, telephone, fax and email. Keep repeated contact labels in their separate source sections.",
+      "request_details": "Specific purpose and data requirements, with additional sheets if needed; disaggregation (requested breakdown) and time frame (data period); receipt deadline YES/NO and date/reason if YES; preferred output PAPER, E-COPY IN CD or E-COPY VIA EMAIL",
+      "printed_conditions": [
+        "Use requested data only for the specified purposes",
+        "Acknowledge Pantawid Pamilya and DSWD as owner and source in all presentations/publications",
+        "Electronic data release is in PDF format to avoid alteration",
+        "Unauthorized sharing, publishing or duplication in whole or part for any other purpose is strictly prohibited",
+        "Provide DSWD a data-utilization feedback report within one month after use; noncompliance forfeits future data-access rights"
+      ],
+      "protected_boundary": "Conditions acknowledgment and Signature of Requesting Party with its associated Date; never attest, sign or populate the signature date",
+      "cautions": [
+        "Not AICS crisis assistance, benefit enrollment or beneficiary data updating; never promote this record to an agency default",
+        "The requester deadline is not an agency processing commitment; printed conditions are not verified current release policy",
+        "Reference notes contain no runtime identifiers, coordinates or mappings; inspect actual structure before any synthetic draft",
+        "Do not reuse the person's telephone/email for the organization or infer missing affiliation, purpose, requested breakdown, time frame, deadline or output"
+      ]
+    },
+    {
       "agency": "SSS",
       "service": "Personal Record E-1",
       "title": "Personal Record for issuance of SS number",

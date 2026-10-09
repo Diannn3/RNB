@@ -15,6 +15,10 @@ DSWD's default is a genuine scanned General Intake Sheet extracted from a public
 
 The official PhilHealth PMRF, CF-1, its synthetic scan, Annex B, the synthetic interactive PMRF derivative, and the full DSWD procurement source are **technical-only, non-default fixtures**. Do not offer them as applicant demo flows. Annex B is inspect-only and must never be populated. The synthetic PMRF derivative is not an official fillable PMRF.
 
+The uploaded DSWD Pantawid Pamilyang Pilipino Program Data Request Form is a non-default program-data request, not AICS, benefit enrollment, or a beneficiary update. Its durable safety/provenance notes are in `references/government-forms.json`; its sourced explanation is in the `government-service-explainer` corpus. Distinguish the requesting person's home/contact details from the organization/agency's office/contact details. Purpose and data requirements allow additional sheets; disaggregation is the requested breakdown and time frame the data period. Receipt deadline/date/reason and paper/CD/email output are requester preferences, not agency promises. The printed conditions restrict use and redistribution, require agency attribution and electronic PDF release, and require a utilization report within one month after use. Protect the conditions acknowledgment, requesting-party signature and associated date. These notes do not supply mappings or add a default flow.
+
+Skill activation is explicit endpoint routing and corpus lookup, not automatic discovery or model memory. “Explain this form” belongs to the service explainer and must use extracted document identity, never a filename; drafting still requires runtime inspection and valid mappings under this skill.
+
 ## Procedure
 
 1. Confirm the operator is using the localhost API with the applicant present. Do not ask for or accept real values. Explain the synthetic-only draft boundary and ask which of the two agency flows is requested.

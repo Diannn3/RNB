@@ -10,6 +10,7 @@
     "term": "Assistance to Individuals in Crisis Situations",
     "aliases": ["AICS", "DSWD AICS", "Assistance to Individuals in Crisis Situation", "crisis assistance"],
     "feed": "DSWD",
+    "document_markers": ["general intake sheet", "protective services division", "crisis intervention"],
     "url": "https://aics.dswd.gov.ph/aics-program/",
     "definition": "AICS is a DSWD social welfare service for people or families in crisis. It provides assistance for medical, burial, transportation, education, food, or other financial support needs. This description does not determine whether an individual qualifies or will receive assistance."
   },
@@ -26,6 +27,14 @@
     "feed": "DSWD",
     "url": "https://fo8.dswd.gov.ph/cis-assistance-requirements/",
     "definition": "For educational assistance, DSWD Field Office VIII lists a valid ID and a school-issued document establishing that the student is enrolled. Its guidance asks clients to bring originals and two photocopies. Confirm current local requirements; having these documents does not guarantee assistance."
+  },
+  {
+    "term": "Pantawid Data Request Form",
+    "aliases": ["DSWD Pantawid data request", "Pantawid data request form", "Pantawid Pamilyang Pilipino Program Data Request Form", "4Ps data request"],
+    "document_markers": ["pantawid pamilyang pilipino program", "data request form", "name of person making request"],
+    "feed": "DSWD",
+    "url": "https://pantawid.dswd.gov.ph/wp-content/uploads/2020/07/PMED-Data-Request-Form.pdf",
+    "definition": "The Pantawid Pamilyang Pilipino Program Data Request Form records a request for program data, not AICS crisis assistance, benefit enrollment, or a beneficiary data update. It separates the person making the request (name, position, home address, telephone, mobile and email) from the organization or agency (name, office address, telephone, fax and email). It asks for the specific purpose and data requirements, allowing additional sheets; disaggregation means the requested breakdown of data, and time frame means the period the requested data should cover. The requester indicates whether there is a receipt deadline and, if yes, its date and reason; this is not an agency processing promise. Preferred output choices are paper, e-copy in CD, or e-copy via email. The printed conditions limit use to the stated purpose; require acknowledging Pantawid Pamilya and DSWD as data owner and source in presentations/publications; specify PDF for electronic release to avoid alteration; prohibit unauthorized sharing, publication or duplication for other purposes; and require a data-utilization feedback report to DSWD within one month after use. Noncompliance is stated to forfeit future data-access rights. The requesting party's signature and associated date acknowledge these conditions and must remain blank in this demo. This is an explanation of the published blank form, not current release policy or a guarantee of data access."
   },
   {
     "term": "Social Security System",
@@ -45,6 +54,7 @@
     "term": "Personal Record E-1",
     "aliases": ["E-1", "E1", "SSS E-1", "SSS Personal Record", "Personal Record", "E-1 form"],
     "feed": "SSS",
+    "document_markers": ["social security system", "personal record", "for issuance of ss number"],
     "url": "https://www.sss.gov.ph/wp-content/uploads/2024/10/E1-Personal-Record.pdf",
     "definition": "E-1 is the SSS Personal Record form for issuance of an SS number. It records the registrant's personal data, dependents or beneficiaries, and applicable self-employed, overseas Filipino worker, or non-working spouse information. The form separates registrant entries from fields to be filled out by SSS."
   },
@@ -87,6 +97,7 @@
     "term": "PhilHealth Member Registration Form",
     "aliases": ["PMRF", "PhilHealth PMRF", "PMRF form", "PhilHealth registration form"],
     "feed": "PhilHealth",
+    "document_markers": ["philhealth member registration form", "philhealth identification number"],
     "url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
     "definition": "The PMRF is the PhilHealth Member Registration Form. It is used for registration or updating and amendment of membership information, including personal details, addresses and contact details, dependents, and member type. It contains separate spaces for the member's certification and for PhilHealth use."
   },
