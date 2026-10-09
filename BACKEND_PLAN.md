@@ -1,6 +1,6 @@
 # Papelless — Hackathon Backend Plan
 
-Local-first API for Philippine government-form preparation, sourced service explanations, and cross-document conflict detection. The demo targets DSWD AICS, SSS membership, and PhilHealth membership with synthetic data only; architecture and API routes remain unchanged.
+Local-first API for Philippine government-form preparation, sourced service explanations, and cross-document conflict detection. The demo targets DSWD AICS and SSS membership with synthetic data only; architecture and API routes remain unchanged. PhilHealth forms are retained only as technical fixtures, not active applicant flows.
 
 ## 1. Demo stack
 
@@ -121,8 +121,7 @@ Runtime mapping uses LFM. Any development reference maps are comparators only, n
 |---|---|
 | DSWD AICS applicant form | Runtime-grounded extraction and separate draft |
 | SSS Personal Record E-1 | Runtime-grounded extraction and separate draft |
-| PhilHealth PMRF, UHC v.1 January 2020 (official flat source) | Fixed-layout extraction and ReportLab overlays |
-| CF-1, synthetic CF-1 scan, synthetic interactive PMRF, Annex B | Retained technical parser fixtures, not default demo forms |
+| Official PMRF, CF-1, synthetic CF-1 scan, synthetic interactive PMRF, Annex B | Retained technical parser fixtures, not default demo forms |
 
 The exact default files are selected by `skills/government-form-assistant/assets/forms/defaults.json`. Preserve official sources and notices; export separate copies. Annex B remains inspect-only and cannot be populated.
 
@@ -161,7 +160,7 @@ Load one relevant skill and only the reference snippets needed for the request. 
 |---|---|---|
 | 1 — Local API and storage | FastAPI, SQLModel tables, workspace directories, upload and artifact lookup | Upload a fixture; retrieve its artifact after restarting the API |
 | 2 — Local inference | LFM through llama.cpp, typed tools, context budgeting | Exercise actual LFM tool-call parsing on the demo laptop |
-| 3 — PDF intake | Text, widget, layout, and OCR extraction | Inspect all three agency defaults plus retained parser fixtures |
+| 3 — PDF intake | Text, widget, layout, and OCR extraction | Inspect both agency defaults plus retained parser fixtures |
 | 4 — Form preparation | Mapping, one-question turns, validation, preview/export | Fill and export complete and partial drafts from source copies |
 | 5 — Comparison | Source-linked conflicts and one clarification | Leave an unresolved field blank while exporting other values |
 | 6 — Explanations | Bundled government-service lookup and skill | Explain each selected agency/service with an official citation; abstain outside corpus |
@@ -170,7 +169,7 @@ Load one relevant skill and only the reference snippets needed for the request. 
 
 - Run the API and inference locally with the network disconnected.
 - Exercise the actual model’s tool-call format and measure memory use and latency on the demo laptop. Record working model/server settings; no performance SLA is needed.
-- Upload and process the DSWD, SSS, and PhilHealth defaults; retain technical parser coverage and reject oversized or unsupported inputs.
+- Upload and process the DSWD and SSS defaults; retain technical parser coverage and reject oversized or unsupported inputs.
 - Confirm exactly one question per turn and successful multi-turn completion.
 - Confirm invalid mappings fail, missing values remain blank, and conflicts are not silently resolved.
 - Confirm exported PDFs reopen and render correctly, source PDFs remain unchanged, and protected fields are untouched.

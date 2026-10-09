@@ -37,22 +37,6 @@
         "Do not determine registration qualification, issue an SS number, select approvals or compute contributions/MSC",
         "Historical documentary lists and Flexi-Fund references are not verified current policy"
       ]
-    },
-    {
-      "agency": "PhilHealth",
-      "service": "PMRF",
-      "title": "PhilHealth Member Registration Form",
-      "printed_version": "UHC v.1 January 2020",
-      "official_source_url": "https://www.philhealth.gov.ph/downloads/membership/pmrf_012020.pdf",
-      "default_file": "philhealth-pmrf-012020.pdf",
-      "source_kind": "Unmodified official two-page text PDF, zero AcroForm widgets",
-      "applicant_boundary": "Member registration/updating details that the inspected structure demonstrates are applicant-answerable",
-      "protected_boundary": "For PhilHealth Use Only, received-by fields, certification/attestation, signatures/thumbmark and associated dates",
-      "cautions": [
-        "The synthetic AcroForm PMRF is a separate technical fixture; its widget identifiers do not exist in this official source",
-        "Member-type categories require explicit applicant statements and do not establish membership, coverage, eligibility or contribution rates",
-        "Never treat a PhilHealth PIN as an SSS number or use claim-form CF-1 semantics for PMRF"
-      ]
     }
   ]
 }

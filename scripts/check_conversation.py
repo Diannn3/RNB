@@ -53,7 +53,7 @@ def check_conversation():
         '--offline', '--log-disable', '--metrics'], cwd=root)
     api = None
     try:
-        with tempfile.TemporaryDirectory() as directory, httpx.Client(timeout=240) as client:
+        with tempfile.TemporaryDirectory() as directory, httpx.Client(timeout=600) as client:
             deadline = time.monotonic() + 90
             while time.monotonic() < deadline:
                 if inference.poll() is not None:

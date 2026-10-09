@@ -1,13 +1,13 @@
 ---
 name: cross-document-checker
-description: Compare applicant facts across current-workspace documents for DSWD AICS, SSS E-1, and PhilHealth PMRF, preserving provenance and reporting mismatches without resolving identity or eligibility.
+description: Compare applicant facts across current-workspace documents for DSWD AICS and SSS E-1, preserving provenance and reporting mismatches without resolving identity or eligibility.
 ---
 
 # Cross-Document Checker
 
 ## Purpose and limits
 
-Compare explicit statements or mapped fields across documents in the active workspace for the selected DSWD AICS, SSS Personal Record E-1, and PhilHealth PMRF flows. This is a document-consistency aid, not a source-of-truth resolver, identity-verification service, or eligibility adjudicator. Never decide which candidate is correct, authentic, eligible, or otherwise preferable. Do not invent or normalize facts to force agreement. CF-1, Annex B, and synthetic parser derivatives are technical-only, non-default fixtures, not additional applicant service flows.
+Compare explicit statements or mapped fields across documents in the active workspace for the selected DSWD AICS and SSS Personal Record E-1 flows. This is a document-consistency aid, not a source-of-truth resolver, identity-verification service, or eligibility adjudicator. Never decide which candidate is correct, authentic, eligible, or otherwise preferable. Do not invent or normalize facts to force agreement. PhilHealth PMRF, CF-1, Annex B, and synthetic parser derivatives are technical-only, non-default fixtures, not additional applicant service flows.
 
 The demo is synthetic-only by operator policy; real applicant or third-party data is prohibited. Runtime is local LFM2.5-2.6B Q4_K_M (English, default) or Qwen3.5-4B Q4_K_M (Taglish), selected by `PAPELLESS_MODEL_PROFILE=lfm|qwen`, both with an 8,192-token context through llama.cpp with FastAPI/SQLModel/SQLite and typed allowlisted tools. Use only approved typed tools; never Bash, raw SQL, unrestricted filesystem access, remote models, signing, or external submission. The API is localhost-only and has no login; do not treat that as a technical guarantee of authorization.
 

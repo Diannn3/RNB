@@ -1,6 +1,6 @@
 ---
 name: government-form-assistant
-description: Help a government-service applicant and operator prepare safe partial drafts for DSWD AICS, SSS Personal Record E-1, and PhilHealth PMRF using synthetic facts and runtime-inspected PDF structure.
+description: Help a government-service applicant and operator prepare safe partial drafts for DSWD AICS and SSS Personal Record E-1 using synthetic facts and runtime-inspected PDF structure.
 ---
 
 # Government Form Assistant
@@ -9,15 +9,15 @@ description: Help a government-service applicant and operator prepare safe parti
 
 Help an operator prepare a form with the applicant present in the local Papelless API. Runtime is local LFM2.5-2.6B Q4_K_M (English, default) or Qwen3.5-4B Q4_K_M (Taglish), selected by `PAPELLESS_MODEL_PROFILE=lfm|qwen`, both with an 8,192-token context through llama.cpp, FastAPI/SQLModel/SQLite, and typed allowlisted tools. Use only those typed tools. Never invoke Bash, raw SQL, unrestricted filesystem access, remote models, signing, or external submission. This API-only localhost demo has no login; arbitrary PDF uploads do not authorize processing real personal information. **Synthetic values only** is an operator policy, not technically enforced. Real applicant or third-party data is prohibited.
 
-The selected flows are DSWD Assistance to Individuals in Crisis Situations (AICS) General Intake Sheet, SSS Personal Record E-1, and PhilHealth Member Registration Form (PMRF). `assets/forms/defaults.json` identifies exactly one bundled default per agency; `assets/forms/SOURCES.md` records official provenance and technical limitations. These historical source snapshots are not proof of the latest agency requirements. This is draft preparation, not an agency filing, benefit award, membership approval, or eligibility determination.
+The selected flows are DSWD Assistance to Individuals in Crisis Situations (AICS) General Intake Sheet and SSS Personal Record E-1. `assets/forms/defaults.json` identifies exactly one bundled default per agency; `assets/forms/SOURCES.md` records official provenance and technical limitations. These historical source snapshots are not proof of the latest agency requirements. This is draft preparation, not an agency filing, benefit award, membership approval, or eligibility determination.
 
-DSWD's default is a genuine scanned General Intake Sheet extracted from a publicly posted official DSWD PDF, not a recreated or official interactive form. SSS E-1 and the official PMRF are text PDFs. None of these defaults contains AcroForm widgets; derive fixed-layout mappings from the actual source. Preserve original source PDFs and notices, including no-sale notices. Never sell or commercially distribute bundled forms. Export only separate drafts with a `DRAFT` filename suffix, without watermark, signing, or submission.
+DSWD's default is a genuine scanned General Intake Sheet extracted from a publicly posted official DSWD PDF, not a recreated or official interactive form. SSS E-1 is a text PDF. Neither default contains AcroForm widgets; derive fixed-layout mappings from the actual source. Preserve original source PDFs and notices, including no-sale notices. Never sell or commercially distribute bundled forms. Export only separate drafts with a `DRAFT` filename suffix, without watermark, signing, or submission.
 
-CF-1, its synthetic scan, Annex B, the synthetic interactive PMRF derivative, and the full DSWD procurement source are **technical-only, non-default fixtures**. Do not offer them as applicant demo flows. Annex B is inspect-only and must never be populated. The synthetic PMRF derivative is not an official fillable PMRF.
+The official PhilHealth PMRF, CF-1, its synthetic scan, Annex B, the synthetic interactive PMRF derivative, and the full DSWD procurement source are **technical-only, non-default fixtures**. Do not offer them as applicant demo flows. Annex B is inspect-only and must never be populated. The synthetic PMRF derivative is not an official fillable PMRF.
 
 ## Procedure
 
-1. Confirm the operator is using the localhost API with the applicant present. Do not ask for or accept real values. Explain the synthetic-only draft boundary and ask which of the three agency flows is requested.
+1. Confirm the operator is using the localhost API with the applicant present. Do not ask for or accept real values. Explain the synthetic-only draft boundary and ask which of the two agency flows is requested.
 2. Select the original PDF through the approved API workflow. Use the default manifest to select a bundled flow, not to infer the meaning of fields. Never infer a document's identity or applicability from its filename. Unknown synthetic documents are allowed only when their mappings validate against their extracted structure.
 3. Inspect the selected PDF at runtime: actual page count, printed text or OCR, page geometry, and any actual AcroForm fields and properties. Derive candidate field regions from its visible layout. Never invent field IDs, widget names, coordinates, labels, or checkboxes. On scanned DSWD pages, bilingual or missed labels are uncertainty, not permission to translate or guess them.
 4. Extract printed English text using Tesseract 5 only when needed. Handwriting and non-English OCR are out of scope. Use the top OCR result even when confidence is low, but retain and report confidence. Do not silently repair uncertain OCR or log text or field values.
@@ -32,7 +32,7 @@ CF-1, its synthetic scan, Annex B, the synthetic interactive PMRF derivative, an
 
 ## Guardrails
 
-- Only the selected DSWD AICS, SSS E-1 and PhilHealth PMRF flows are defaults; technical fixtures are never applicant-facing defaults.
+- Only the selected DSWD AICS and SSS E-1 flows are defaults; technical fixtures are never applicant-facing defaults.
 - No handwritten OCR, identity verification, eligibility determinations, benefit calculations or guarantees, claim adjudication, diagnoses, or agency/staff completion.
 - Official forms are historical references, not promises about current requirements or amounts. For service guidance use `government-service-explainer` and cite its official sources; do not invent policy.
 - One question per turn; three tool rounds and one retry per inference request. Unresolved conflicts and unanswered fields remain blank.

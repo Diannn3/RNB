@@ -1,4 +1,4 @@
-"""Synthetic three-agency scenario shared by the CUDA conversation check."""
+"""Synthetic DSWD/SSS scenario shared by the CUDA conversation check."""
 import hashlib
 import io
 
@@ -38,6 +38,8 @@ def check_forms(forms, defaults, client, post):
         structure = client.get(BASE + f'/documents/{document}/structure')
         structure.raise_for_status()
         structure = structure.json()
+        targets = {w['id']: w for w in structure['widgets']}
+        targets.update({b['id']: b for p in structure['pages'] for b in p['boxes']})
         turn = post(prefix + '/messages', json={'document_id': document})
         supplied, seen = set(), set()
         for _ in range(300):
@@ -53,17 +55,21 @@ def check_forms(forms, defaults, client, post):
             assert field not in seen, f'Repeated question for {field}'
             seen.add(field)
             answer = None
-            name = turn['name']
+            label = turn['label'].lower().replace(' ', '_')
+            name = turn['name'] + ' ' + label
             if 'last_name' in name or 'surname' in name:
                 answer = 'EXAMPLE'
             elif 'first_name' in name or 'given_name' in name:
                 answer = 'ADA'
             elif 'middle_name' in name:
                 answer = 'DEMO'
-            elif name in {'applicant_name', 'member_name', 'full_name', 'name'}:
+            elif turn['name'] in {'applicant_name', 'member_name', 'full_name', 'name'} or label in {
+                    'applicant_name', 'member_name', 'full_name', 'name'}:
                 answer = 'ADA DEMO EXAMPLE'
             elif 'email' in name:
                 answer = 'ada@example.invalid'
+            if targets[field]['type'] != 'text':
+                answer = None
             if answer:
                 supplied.add(answer)
                 print('Applicant:', answer, flush=True)
