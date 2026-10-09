@@ -74,9 +74,9 @@ test("hero keyboard navigation, destinations, grid and accessibility", async ({ 
   await page.locator(".site-header").getByRole("link", { name: /Open workspace/ }).click();
   await expect(page).toHaveURL(/\/app$/);
   await page.goto("/");
-  await page.getByRole("link", { name: "Follow an answer" }).click();
+  await page.locator(".scroll-cue").click();
   await expect(page).toHaveURL(/#how-it-works$/);
-  await expect(page.getByRole("heading", { name: "Every answer has a story." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "From a form to a finished draft." })).toBeVisible();
 });
 
 test("hero entrance settles and glass has a readable fallback", async ({ page }) => {

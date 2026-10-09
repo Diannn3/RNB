@@ -182,3 +182,6 @@ The source panel shows "Student record.pdf", "Supporting passage", the quote "Fu
 - **Don't** add a mascot to the hero or redraw the supplied wordmark.
 - **Don't** present the hero's pending review as a completed green approval.
 - **Don't** extend the hero glass, paired shadows, or responsive composition into workspace components as a new global rule.
+
+## Landing simplification — 2026-10-10
+Preserve the approved light paper/grid hero, supplied brand and document/source composition. Follow it with a four-stage Upload / Conversation / Verification / Export explanation and a compact light closing/footer. Remove the repeated cinematic and interactive narratives from the route. Pending answers carry no approval check. Keep one reduced-motion-aware hero entrance. Workspace themes and interview behavior are outside this change.

@@ -1,28 +1,18 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef } from "react";
 import { Link } from "react-router";
 import {
   ArrowRight,
   ArrowDown,
-  Check,
   FileText,
-  ShieldCheck,
   Clock3,
 } from "lucide-react";
 import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Flip } from "gsap/Flip";
 import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
-import SignatureSequence from "./SignatureSequence";
-import { Brand, Evidence, PaperPreview } from "./components";
-gsap.registerPlugin(ScrollTrigger, Flip, SplitText, useGSAP);
+import { Brand, PaperPreview } from "./components";
+gsap.registerPlugin(SplitText, useGSAP);
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null);
-  const flipState = useRef<ReturnType<typeof Flip.getState> | null>(null);
-  const [selected, setSelected] = useState("full_name");
-  const [approved, setApproved] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [saved, setSaved] = useState(false);
   useGSAP(
     () => {
       const mm = gsap.matchMedia();
@@ -52,36 +42,6 @@ export default function Landing() {
     },
     { scope: root },
   );
-  useGSAP(
-    () => {
-      if (
-        flipState.current &&
-        !matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
-        const animation = Flip.from(flipState.current, {
-          duration: 0.45,
-          ease: "expo.out",
-        });
-        flipState.current = null;
-        return () => animation.kill();
-      }
-    },
-    { scope: root, dependencies: [selected] },
-  );
-  const choose = (id: string) => {
-    flipState.current = Flip.getState(
-      root.current!.querySelector(".interactive-paper")!,
-    );
-    setSelected(id);
-    setApproved(false);
-    setSaved(false);
-  };
-  const quote =
-    selected === "full_name"
-      ? "Full name: Alex Reyes"
-      : selected === "present_address"
-        ? "Present address: 42 Mabini Street, Los Banos"
-        : "This detail is missing from the sample records.";
   return (
     <div ref={root} className="landing">
       <a className="skip-link" href="#main">
@@ -106,8 +66,8 @@ export default function Landing() {
               of forms.
             </h1>
             <p>
-              Your documents hold the answers. Bring them together. Review every detail.
-              Leave with a draft that makes sense.
+              Upload your PDF. Answer one question at a time. Check your details,
+              then download your draft.
             </p>
             <div className="hero-actions">
               <Link to="/app/sample" className="button hero-primary">
@@ -149,136 +109,31 @@ export default function Landing() {
           </div>
           <a href="#how-it-works" className="scroll-cue">
             <ArrowDown size={18} />
-            <span>Follow an answer</span>
+            <span>How it works</span>
           </a>
         </section>
-        <SignatureSequence />
-        <section className="interactive-section">
-          <LandingGrid />
-          <div className="section-heading">
-            <h2>
-              A little clarity.
-              <br />A lot less guesswork.
-            </h2>
-            <p>
-              Select a field. Read its source.
-              <br />
-              The final answer is always yours.
-            </p>
-          </div>
-          <div className="interactive-demo">
-            <div
-              className="interactive-paper"
-              style={{
-                transform: `rotate(${selected === "present_address" ? 2 : selected === "email" ? 0 : -3}deg)`,
-              }}
-            >
-              <PaperPreview selected={selected} onSelect={choose} />
-            </div>
-            <div className="interactive-review">
-              <span className="sample-label">Fictional sample</span>
-              <h3>
-                {selected === "full_name"
-                  ? "Full name"
-                  : selected === "present_address"
-                    ? "Present address"
-                    : "One detail only you know."}
-              </h3>
-              {selected === "email" ? (
-                <>
-                  <p>What email address would you like to use?</p>
-                  <label htmlFor="demo-email">Email address</label>
-                  <input
-                    id="demo-email"
-                    type="email"
-                    value={answer}
-                    onChange={(e) => {
-                      setAnswer(e.target.value);
-                      setSaved(false);
-                    }}
-                    placeholder="you@example.com"
-                  />
-                  <button
-                    className="button primary"
-                    disabled={
-                      !answer || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answer)
-                    }
-                    onClick={() => setSaved(true)}
-                  >
-                    {saved ? "Answer saved" : "Save answer"} <Check size={17} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="demo-answer">
-                    {selected === "full_name"
-                      ? "Alex Reyes"
-                      : "42 Mabini Street, Los Baños"}
-                  </div>
-                  <Evidence
-                    quote={quote}
-                    name={
-                      selected === "full_name"
-                        ? "Student record.pdf"
-                        : "Residence letter.pdf"
-                    }
-                  />
-                  <p className="muted">
-                    {selected === "present_address"
-                      ? "A permanent address can differ from where you live now. Read the context before choosing."
-                      : "The record supports this suggestion. You decide whether to use it."}
-                  </p>
-                  <button
-                    className={`button ${approved ? "approved-button" : "primary"}`}
-                    onClick={() => setApproved(!approved)}
-                  >
-                    <Check size={17} />
-                    {approved ? "Reviewed by you" : "Review this answer"}
-                  </button>
-                </>
-              )}
-              <p className="demo-feedback" aria-live="polite">
-                {saved
-                  ? "Your answer is saved in this demonstration."
-                  : approved
-                    ? "Reviewed. Open the sample workspace to prepare a draft."
-                    : " "}
-              </p>
-            </div>
-          </div>
+        <section id="how-it-works" className="landing-steps" aria-labelledby="steps-heading">
+          <h2 id="steps-heading">From a form to a finished draft.</h2>
+          <ol>
+            <li><h3>Upload your PDF</h3><p>Bring the form you want to complete.</p></li>
+            <li><h3>Answer a question at a time</h3><p>Work through the fields in a conversation.</p></li>
+            <li><h3>Check your information</h3><p>Edit your answers and preview the document before confirming.</p></li>
+            <li><h3>Choose your download</h3><p>Export a PDF or an editable Word answer document.</p></li>
+          </ol>
         </section>
-        <section className="closing">
-          <LandingGrid dark />
-          <div className="closing-copy">
-            <h2>
-              Less paperwork.
-              <br />
-              More forward.
-            </h2>
-            <p>A draft you can read, correct, and make your own.</p>
-            <Link to="/app" className="button light">
-              Start with a form <ArrowRight size={19} />
-            </Link>
+        <section className="landing-finish" aria-labelledby="finish-heading">
+          <div><h2 id="finish-heading">Your next step starts here.</h2>
+            <Link to="/app" className="button hero-primary">Start with a form <ArrowRight size={19} aria-hidden="true" /></Link>
           </div>
-          <div className="capabilities">
-            <ShieldCheck size={26} />
-            <h3>Room for your judgment.</h3>
-            <p>
-              Real PDFs can be filled and reviewed manually. The sample
-              demonstrates evidence-linked suggestions.
-            </p>
-            <p>
-              The AI agent is not connected yet. Nothing is signed or submitted.
-            </p>
-            <Link to="/app/sample" className="text-button">
-              Try the complete sample <ArrowRight size={16} />
-            </Link>
+          <div className="landing-note">
+            <p>Your documents stay in this browser session.</p>
+            <p>Real PDFs use manual entry. The fictional sample demonstrates evidence-linked suggestions; the AI agent is not connected yet.</p>
+            <p>Nothing is signed or submitted.</p>
           </div>
         </section>
       </main>
       <footer>
-        <LandingGrid dark />
-        <Brand dark />
+        <Brand />
         <span>Prepared by PapelLess. Reviewed by you.</span>
         <a href="#main">
           Back to top <ArrowUpRightIcon />

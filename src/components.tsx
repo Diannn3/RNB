@@ -132,7 +132,6 @@ export function PaperPreview({
           >
             <span>{label}</span>
             <strong>{value}</strong>
-            {id === "full_name" && <Check size={15} />}
           </button>
         ))}
       </div>

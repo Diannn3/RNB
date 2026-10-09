@@ -2620,3 +2620,24 @@ html[data-workspace-theme="dark"] .modal .button.primary { background: var(--ink
     top: -11px;
   }
 }
+
+/* The landing story ends in a concise, paper-light service introduction. */
+.landing .hero h1 { font-size: clamp(3.5rem, 5rem + 1vw, 5.75rem); }
+.landing .hero-copy > p { max-width: 48ch; }
+.landing-steps, .landing-finish { padding: 72px max(24px, calc((100% - 1240px) / 2)); background: #fafaf8; }
+.landing-steps { border-top: 1px solid #e0e2e5; scroll-margin-top: 24px; }
+.landing-steps h2, .landing-finish h2 { font-size: clamp(1.75rem, 1.3rem + 1.5vw, 2.5rem); line-height: 1.2; letter-spacing: -.03em; font-weight: 600; margin: 0 0 36px; }
+.landing-steps ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; list-style: none; padding: 0; margin: 0; }
+.landing-steps li { border-top: 1px solid #d4d7db; padding-top: 22px; }
+.landing-steps h3 { font-size: 1rem; line-height: 1.5; font-weight: 600; margin: 0 0 10px; }
+.landing-steps p, .landing-note p { font-size: .9375rem; line-height: 1.7; color: #62666d; margin: 0; }
+.landing-finish { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; border-top: 1px solid #e0e2e5; }
+.landing-finish h2 { margin-bottom: 24px; }
+.landing-note { max-width: 48ch; }
+.landing-note p + p { margin-top: 14px; }
+.landing footer { background: #fafaf8; color: #17191c; border-top: 1px solid #e0e2e5; }
+@media (max-width: 1100px) { .landing .hero h1 { font-size: clamp(3.5rem, 2.5rem + 5vw, 5.75rem); } }
+@media (max-width: 768px) { .landing-steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); } .landing-finish { grid-template-columns: 1fr; gap: 32px; } }
+@media (max-width: 600px) { .landing .hero h1 { font-size: clamp(2.625rem, 1.5rem + 6vw, 4rem); } .landing-steps, .landing-finish { padding: 48px 24px; } .landing-steps ol { grid-template-columns: 1fr; gap: 24px; } }
+
+.landing-steps, .landing-finish { color: #17191c; }
