@@ -49,7 +49,7 @@ Request status:
 {"id":"opaque-id","workspace_id":"opaque-id","kind":"message","status":"needs_input","error_code":null,"created_at":"2026-10-09T12:00:00Z","updated_at":"2026-10-09T12:00:01Z"}
 ```
 
-`kind` identifies the operation (`ingest`, `message`, `compare`, `explanation`, or `draft`). Statuses are `accepted`, `ingesting`, `generating_proposals`, `needs_input`, `rendering`, `completed`, and `failed`; failed requests carry an `error_code`.
+`kind` identifies the operation (`ingest`, `message`, `compare`, `explanation`, or `draft`). Statuses are `accepted`, `ingesting`, `ready`, `generating_proposals`, `needs_input`, `rendering`, `completed`, and `failed`; failed requests carry an `error_code`. Processing is synchronous: inspect the returned `request_id` after the POST finishes, not by polling an accepted job.
 
 ### Extracted structure
 

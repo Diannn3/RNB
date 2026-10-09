@@ -145,7 +145,10 @@ def mapping_for(session, workspace_id, document_id, request):
 @app.get('/api/v1/documents/{document_id}/structure')
 def structure(document_id: str, session: SessionDep):
     with lock:
-        return get_structure(session, document_id)
+        try:
+            return get_structure(session, document_id)
+        except (ValueError, OSError):
+            raise HTTPException(422, detail={'error_code': 'processing_failed'}) from None
 
 
 class Input(BaseModel):
