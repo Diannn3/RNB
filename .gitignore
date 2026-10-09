@@ -6,3 +6,4 @@ app.db
 app.db-*
 workspaces/
 .pytest_cache/
+.impeccable/
