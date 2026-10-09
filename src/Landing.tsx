@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 import {
   ArrowRight,
@@ -14,6 +14,7 @@ import { Flip } from "gsap/Flip";
 import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
 import SignatureSequence from "./SignatureSequence";
+import LandingGrid from "./LandingGrid";
 import { Brand, Evidence, PaperPreview } from "./components";
 gsap.registerPlugin(ScrollTrigger, Flip, SplitText, useGSAP);
 export default function Landing() {
@@ -285,19 +286,6 @@ export default function Landing() {
         </a>
       </footer>
     </div>
-  );
-}
-function LandingGrid({ dark = false }: { dark?: boolean }) {
-  const patternId = `landing-grid-${useId().replace(/:/g, "")}`;
-  return (
-    <svg className={`landing-grid${dark ? " landing-grid-dark" : ""}`} width="100%" height="100%" aria-hidden="true" focusable="false">
-      <defs>
-        <pattern id={patternId} width="48" height="48" patternUnits="userSpaceOnUse">
-          <path d="M48 0H0V48" fill="none" stroke="currentColor" strokeWidth="1" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-    </svg>
   );
 }
 function ArrowUpRightIcon() {

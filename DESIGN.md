@@ -135,6 +135,8 @@ The hero art is an upright, non-overlapping composition: shared form on the left
 
 **The Neutral Grid Rule.** The existing landing grid repeats every 48px with a 1px stroke and 0.1 opacity. Each header, landing section, and footer owns its non-interactive grid; light sections use ink and dark sections use paper. This approved grid treatment is the only shared landing decoration recorded by this update.
 
+User annotation refinement, October 10: the walkthrough also renders the shared decorative grid. Its paper cards use white at 60% opacity, and the interactive demo wrapper uses paper at 55%, letting the grid continue through those fills. Only background colors are translucent; text, controls, semantic evidence fills, and the actual form stay fully opaque. These landing-specific fills do not affect workspace styling.
+
 ### Approved annotation corrections — October 9, 2026
 
 The landing wordmark viewport is 160px wide (112px in the smallest header). Image offsets crop only empty asset margins; all supplied letterforms remain visible. The footer establishes its graphite backdrop and uses a lightening blend to remove the supplied dark logo's black matte visually, preserving the original PNG and its silver lettering.

@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { Evidence } from "./components";
+import LandingGrid from "./LandingGrid";
 const SampleDraft = lazy(() => import("./SampleDraft"));
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 const steps = ["Blank field", "Source", "Suggestion", "Your review", "Draft"];
@@ -67,6 +68,7 @@ export default function SignatureSequence() {
       className={`signature signature-story ${cinematic ? "signature-cinematic" : ""}`}
       id="how-it-works"
     >
+      <LandingGrid />
       <div className="signature-inner">
         <div className="signature-copy">
           <h2>

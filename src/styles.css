@@ -2249,6 +2249,13 @@ html[data-workspace-theme="dark"] .modal .button.primary { background: var(--ink
 .landing-grid-dark {
   color: var(--paper);
 }
+/* Translucent fills reveal the grid without fading the text or controls. */
+.landing .signature-story .story-page {
+  background: rgb(255 255 255 / 60%);
+}
+.landing .interactive-demo {
+  background: rgb(250 250 248 / 55%);
+}
 .landing > .site-header,
 .landing .hero {
   --hero-surface: #f2f3f1;
