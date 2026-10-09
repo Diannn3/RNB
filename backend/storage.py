@@ -40,6 +40,11 @@ class DocumentRecord(_Record, table=True):
     created_at: datetime = Field(default_factory=now)
 
 
+class DocumentNameRecord(SQLModel, table=True):
+    document_id: str = Field(foreign_key='documentrecord.id', primary_key=True)
+    filename: str
+
+
 class RequestRecord(_Record, table=True):
     id: str = Field(default_factory=opaque_id, primary_key=True)
     workspace_id: str = Field(foreign_key='workspacerecord.id', index=True)

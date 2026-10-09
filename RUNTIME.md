@@ -265,14 +265,14 @@ temporary artifacts. Future runs retain the actual verified exports and previews
 
 ### DSWD live-demo mapping cache
 
-The first successful mapping of the bundled DSWD AICS PDF writes
+The first successful mapping of either bundled DSWD AICS PDF or `backend/demo_forms/dswd-pantawid-data-request.pdf` writes
 `$PAPELLESS_DATA/dswd-mapping-<sha256>.json` (default: `workspaces/`).
 Byte-identical uploads reuse that mapping across filenames, workspaces, and API
 restarts. Changed PDF bytes use normal inference. Cache hits are revalidated
 against the uploaded document's extracted slots, geometry, and protections;
 invalid cached mappings are regenerated. Only mappings are cached, never answers.
 Delete the cache file to force a fresh mapping after model or prompt changes.
-This is caching for live demo purposes; the first upload still needs inference.
+This is caching for live demo purposes; the first upload still needs mapping inference. Each new question also uses local inference; the mapping cache does not cache question text or enable model prompt caching.
 
 
 

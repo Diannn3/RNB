@@ -63,6 +63,15 @@ def create_workspace(session: SessionDep):
     return record
 
 
+@app.get('/api/v1/documents')
+def uploaded_documents(session: SessionDep):
+    rows = session.exec(select(db.DocumentRecord, db.DocumentNameRecord.filename)
+        .outerjoin(db.DocumentNameRecord, db.DocumentRecord.id == db.DocumentNameRecord.document_id)
+        .order_by(db.DocumentRecord.created_at.desc())).all()
+    return [{**document.model_dump(mode='json'), 'filename': filename}
+            for document, filename in rows]
+
+
 @app.get('/api/v1/workspaces/{workspace_id}')
 def workspace(workspace_id: str, session: SessionDep):
     return db.resource(session, db.WorkspaceRecord, workspace_id)
@@ -71,8 +80,11 @@ def workspace(workspace_id: str, session: SessionDep):
 @app.get('/api/v1/workspaces/{workspace_id}/documents')
 def documents(workspace_id: str, session: SessionDep):
     db.resource(session, db.WorkspaceRecord, workspace_id)
-    return session.exec(select(db.DocumentRecord).where(
-        db.DocumentRecord.workspace_id == workspace_id)).all()
+    rows = session.exec(select(db.DocumentRecord, db.DocumentNameRecord.filename)
+        .outerjoin(db.DocumentNameRecord, db.DocumentRecord.id == db.DocumentNameRecord.document_id)
+        .where(db.DocumentRecord.workspace_id == workspace_id)).all()
+    return [{**document.model_dump(mode='json'), 'filename': filename}
+            for document, filename in rows]
 
 
 @app.post('/api/v1/workspaces/{workspace_id}/documents', status_code=201)
@@ -100,10 +112,13 @@ def upload(workspace_id: str, session: SessionDep, file: UploadFile = File(...))
             sha256=artifact.sha256, byte_size=len(content),
             page_count=structure['page_count'], document_kind=structure['document_kind'])
         session.add(document)
+        filename = (file.filename or 'Uploaded PDF').replace('\\', '/').rsplit('/', 1)[-1][:255]
+        session.add(db.DocumentNameRecord(document_id=identifier, filename=filename))
         session.commit()
         state(workspace_id)['structures'][identifier] = structure
         db.transition(session, request, 'ready')
-        return {'document': document, 'artifact_id': identifier, 'request_id': request.id}
+        return {'document': {**document.model_dump(mode='json'), 'filename': filename},
+                'artifact_id': identifier, 'request_id': request.id}
 
 
 @app.get('/api/v1/artifacts/{artifact_id}')
@@ -138,11 +153,13 @@ def mapping_for(session, workspace_id, document_id, request):
     current = state(workspace_id)
     structure = get_structure(session, document_id)
     if document_id not in current['mappings']:
-        # Caching for live demo purposes: only the byte-identical bundled DSWD form.
-        bundled = (Path(__file__).parent.parent / 'skills/government-form-assistant'
-                   / 'assets/forms/dswd-aics-general-intake-sheet.pdf')
+        # Only byte-identical bundled demos share a validated mapping, never answers.
+        root = Path(__file__).parent.parent
+        bundled = (root / 'skills/government-form-assistant/assets/forms/dswd-aics-general-intake-sheet.pdf',
+                   root / 'backend/demo_forms/dswd-pantawid-data-request.pdf')
         cache = db.ROOT / f'dswd-mapping-{document.sha256}.json'
-        demo_form = document.sha256 == hashlib.sha256(bundled.read_bytes()).hexdigest()
+        demo_form = any(document.sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
+                        for path in bundled)
         mapping = None
         if demo_form and cache.is_file():
             try:
@@ -351,7 +368,7 @@ def compare(workspace_id: str, session: SessionDep):
         db.transition(session, request, 'generating_proposals')
         grouped = {}
         for document in documents(workspace_id, session):
-            for fact in source_facts(get_structure(session, document.id)):
+            for fact in source_facts(get_structure(session, document['id'])):
                 grouped.setdefault(fact['name'], []).append(fact)
         current = state(workspace_id)
         results = []
