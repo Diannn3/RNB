@@ -1,3 +1,5 @@
+> Historical implementation description, superseded by [Live backend integration](INTEGRATION.md) and [current acceptance](../GOAL_CONTRACT.md). This is not the active product contract. The live synthetic-only API persists uploaded/generated files locally, has no remote fallback, permits partial drafts and requires human confirmation before PDF-only download. Manual/sample modes and project restoration are removed.
+
 # Conversational interview implementation
 
 Approved October 9, 2026: Upload → graphite chat → bright verification → final Yes/No confirmation → explicit PDF/Word selection → download.

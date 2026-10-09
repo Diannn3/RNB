@@ -1,3 +1,5 @@
+> Historical research context. Active behavior is defined by [Live backend integration](INTEGRATION.md); browser-local PDF generation and its widget/export decisions below no longer define the workspace.
+
 # Research-to-implementation decisions
 
 Freshness boundary: October 9, 2026. The approved plan reports 38 GitHub candidates, 39 package records, 16 READMEs, 12 issue threads, 38 substantive reference/documentation pages and five visually inspected sites. These overlapping categories are not a unique source total or a new research pass performed during implementation.

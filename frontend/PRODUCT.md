@@ -20,7 +20,7 @@ Select an answer, reveal its source, resolve uncertainty, explicitly review, and
 
 ## Capabilities and Constraints
 
-Frontend only. A friend owns the backend and model. Synthetic sample analysis is deterministic and explicitly labeled. Real digital PDFs support manual field editing and answer sheets. Session memory only; optional explicit project-file download. No document transmission, signatures, submission, or eligibility determinations. No inference of semantic requirements in manual mode.
+Live localhost REST API under `/api/v1`, synthetic documents only, no authentication. Uploads and generated artifacts persist in the local API; conversation progress is working memory. No offline/sample/manual fallback, project restoration or Word export. Partial PDF drafts are allowed; final download requires explicit human review confirmation, invalidated by changes. Model-dependent operations require available local inference and have no remote fallback. No signatures, submission or eligibility determinations. See `../API_CONTRACT.md`.
 
 ## Brand Commitments
 
@@ -32,4 +32,4 @@ Keyboard complete, reduced motion, responsive mobile tabs, 200% zoom, accessible
 
 ## Open decisions
 
-Backend transport, model availability, production deployment and repository visibility remain undecided.
+Production deployment and repository visibility remain undecided. The frontend uses a same-origin development proxy; production hosting must provide an equivalent proxy. Current localhost demo is not suitable for personal records.
