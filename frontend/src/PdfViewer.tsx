@@ -2,7 +2,14 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Minus, Plus, RotateCw } from "lucide-react";
 import type { PDFPageProxy } from "pdfjs-dist";
-import type { SourceSpan } from "./domain";
+import { viewportRect } from "./pdf-geometry";
+export interface SourceSpan {
+  documentId: string;
+  page: number;
+  quote: string;
+  /** PDF user-space rectangles: x1, y1, x2, y2. */
+  rects?: [number, number, number, number][];
+}
 import { animate, createScope, svg } from "animejs";
 import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -91,18 +98,7 @@ export default function PdfViewer({
         });
         if (source.rects?.length) {
           setHighlights(
-            source.rects.map((rect) => {
-              const box = [
-                ...viewport.convertToViewportPoint(rect[0], rect[1]),
-                ...viewport.convertToViewportPoint(rect[2], rect[3]),
-              ];
-              return {
-                left: Math.min(box[0], box[2]),
-                top: Math.min(box[1], box[3]),
-                width: Math.abs(box[2] - box[0]),
-                height: Math.abs(box[3] - box[1]),
-              };
-            }),
+            source.rects.map((rect) => viewportRect(viewport, rect)),
           );
           return;
         }
@@ -111,20 +107,8 @@ export default function PdfViewer({
             if (!("str" in item)) return [];
             const x = item.transform[4],
               y = item.transform[5];
-            const box = [
-              ...viewport.convertToViewportPoint(x, y),
-              ...viewport.convertToViewportPoint(
-                x + item.width,
-                y + item.height,
-              ),
-            ];
             return [
-              {
-                left: Math.min(box[0], box[2]),
-                top: Math.min(box[1], box[3]),
-                width: Math.abs(box[2] - box[0]),
-                height: Math.abs(box[3] - box[1]),
-              },
+              viewportRect(viewport, [x, y, x + item.width, y + item.height]),
             ];
           }),
         );

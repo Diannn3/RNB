@@ -18,10 +18,11 @@ All paths below are relative to `/api/v1`.
 | `GET /workspaces/{workspace_id}` | — | `200` workspace object |
 | `POST /workspaces/{workspace_id}/documents` | Multipart field `file`; PDF, at most 10 MiB and 10 pages | `201` `{document, artifact_id, request_id}` |
 | `GET /workspaces/{workspace_id}/documents` | — | `200` array of document objects |
+| `GET /documents` | — | `200` all persisted uploaded document objects, newest first; used by the filename reopen dropdown |
 | `GET /documents/{document_id}/structure` | — | `200` extracted structure object |
 | `POST /workspaces/{workspace_id}/messages` | JSON message body below | `200` needs-input or completed message object |
 | `POST /workspaces/{workspace_id}/compare` | No body | `200` comparison result |
-| `POST /workspaces/{workspace_id}/explanations` | `{"query":"..."}` | `200` explanation result |
+| `POST /workspaces/{workspace_id}/explanations` | `{"query":"...","document_id":"optional-selected-document"}` | `200` explanation result |
 | `GET /requests/{request_id}` | — | `200` request object |
 | `POST /workspaces/{workspace_id}/drafts` | JSON draft body below | `201` completed draft object |
 | `GET /drafts/{draft_id}/preview` | — | `200` PNG bytes (`image/png`) |
@@ -40,10 +41,12 @@ Workspace:
 Document (also nested as `document` in the upload response):
 
 ```json
-{"id":"opaque-id","workspace_id":"opaque-id","sha256":"<64 lowercase hex characters>","byte_size":12345,"page_count":2,"document_kind":"cf1","ingest_status":"ready","created_at":"2026-10-09T12:00:00Z"}
+{"id":"opaque-id","workspace_id":"opaque-id","filename":"example.pdf","sha256":"<64 lowercase hex characters>","byte_size":12345,"page_count":2,"document_kind":"cf1","ingest_status":"ready","created_at":"2026-10-09T12:00:00Z"}
 ```
 
 `document_kind` is one of `cf1`, `pmrf`, `annex_b`, `acroform`, or `fixed_layout`. The uploaded PDF's `artifact_id` equals `document.id`; download it with `GET /artifacts/{artifact_id}`.
+
+`filename` is persisted for new uploads, trimmed to the basename and at most 255 characters. Older records return `null`; the original filename was not stored and is not inferred. Names live in a separate metadata table created at startup, so existing document rows and artifacts need no migration. Restart the API to load this schema and the listing endpoint.
 
 Request status:
 
@@ -116,6 +119,10 @@ Comparison response:
 OCR source confidence retains Tesseract's 0–100 scale; native text boxes use 100, and widget-source confidence is `null`. Source values and IDs are validated against the extracted structure. Unresolved conflict values are excluded even when passed directly to draft creation.
 
 Explanation response shape is `{"request_id":"...","assistant_message":"...","status":"completed|needs_input|abstained","citations":[{"term":"...","feed":"DSWD|SSS|PhilHealth","url":"https://..."}]}`. Citations can be empty. Explanations use bundled official-source English government-service descriptions, include “Demo — not official government advice,” and abstain outside the corpus; they do not determine eligibility or approve benefits. Routes and response fields are unchanged.
+
+For `Explain this form` (or `Explain the form`), supply the selected uploaded `document_id`. The backend verifies workspace ownership and matches identifying phrases in runtime-extracted PDF text against corpus `document_markers`; filenames are not evidence. Missing selection returns `needs_input`, unknown forms abstain, and multiple matching forms require clarification. An explicit service query such as `Explain SSS` searches terms and aliases independently of the selected PDF.
+
+Skill activation is deterministic endpoint dispatch, not automatic skill discovery: messages load `government-form-assistant`, comparisons load `cross-document-checker`, and explanations execute the `government-service-explainer` corpus lookup. Editing skill prose alone does not add searchable knowledge; update `services.json` and its provenance notes. Explanations do not call the local model or browse the web.
 
 Health response shape:
 

@@ -1,3 +1,5 @@
+> Historical merge receipt, not the active behavior contract. Landing visuals remain, but sample-first entry and manual/browser-only disclosures below are obsolete. All entry links now lead to `/app`; illustrations are fictional only. The synthetic-only local API persists files, has no remote fallback and requires human confirmation before partial or complete PDF draft download. See [integration](INTEGRATION.md).
+
 # Landing hero integration receipt
 
 October 9, 2026. Requested: plan and merge audit/papelless-landing-page into the current work.

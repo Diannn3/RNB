@@ -1,3 +1,5 @@
+> Historical receipt only: checks below apply to the removed manual/sample implementation, not the live integration. The browser-only privacy and disconnected-backend limitations below are obsolete. Current synthetic-only API uploads/artifacts persist locally; there is no remote fallback. Partial drafts require human confirmation before PDF-only download. See [current acceptance](../GOAL_CONTRACT.md) and [integration](INTEGRATION.md). No tests or model calls were run for the cutover.
+
 # Verification receipt — October 9, 2026
 
 ## Scope and provenance

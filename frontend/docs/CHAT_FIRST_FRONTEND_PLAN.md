@@ -1,4 +1,4 @@
-> Historical plan, superseded by [Conversational interview](CONVERSATIONAL_INTERVIEW.md). Separate input panels and incomplete-export gates are no longer the current flow.
+> Historical plan, superseded by [Live backend integration](INTEGRATION.md) and [current acceptance](../GOAL_CONTRACT.md). Manual/sample flows, browser-only privacy, project restore and Word export described below are obsolete. The live synthetic-only API persists uploaded/generated files locally, has no remote fallback, permits partial drafts and requires human confirmation before PDF download.
 
 # PapelLess: upload, guided conversation, verification, export
 

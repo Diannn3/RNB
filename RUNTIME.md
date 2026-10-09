@@ -35,6 +35,17 @@ server: `PAPELLESS_MODEL_PROFILE=lfm` (default, English) or `qwen` (Taglish).
 The conversation check launches the matching model and passes the profile to
 its API subprocess; its workflow assertions are shared, not copied.
 
+Start the API with a model flag after starting the matching local inference server:
+
+```sh
+.venv/bin/python -m backend --model qwen
+# Or: .venv/bin/python -m backend --model lfm
+```
+
+The API binds to `127.0.0.1:8000`. `--model` overrides `PAPELLESS_MODEL_PROFILE`; without the flag it uses that variable or defaults to `lfm`. The inference URL remains `PAPELLESS_LLAMA_URL` (default `http://127.0.0.1:8081`). This flag starts the API, not a second model server. Stop the API before changing profiles; a restart clears conversation memory but preserves SQLite resources and artifact files.
+
+The Qwen CLI was exercised against the actual CUDA server: the frontend's `/api/v1/health` proxy returned HTTP 200, API/database `ok`, reachable `Qwen3.5-4B-Q4_K_M`, and 8,192 context tokens. No tests or generation calls were run for this switch.
+
 ```sh
 # Original Liquid version
 PAPELLESS_MODEL_PROFILE=lfm .venv/bin/python -m scripts.check_conversation
@@ -254,14 +265,14 @@ temporary artifacts. Future runs retain the actual verified exports and previews
 
 ### DSWD live-demo mapping cache
 
-The first successful mapping of the bundled DSWD AICS PDF writes
+The first successful mapping of either bundled DSWD AICS PDF or `backend/demo_forms/dswd-pantawid-data-request.pdf` writes
 `$PAPELLESS_DATA/dswd-mapping-<sha256>.json` (default: `workspaces/`).
 Byte-identical uploads reuse that mapping across filenames, workspaces, and API
 restarts. Changed PDF bytes use normal inference. Cache hits are revalidated
 against the uploaded document's extracted slots, geometry, and protections;
 invalid cached mappings are regenerated. Only mappings are cached, never answers.
 Delete the cache file to force a fresh mapping after model or prompt changes.
-This is caching for live demo purposes; the first upload still needs inference.
+This is caching for live demo purposes; the first upload still needs mapping inference. Each new question also uses local inference; the mapping cache does not cache question text or enable model prompt caching.
 
 
 
@@ -284,4 +295,12 @@ digests. Static loader checks found no missing dependencies for `llama-server` o
 GPU model loading and synthetic form completion were exercised during the
 authorized inference fix. Real CF-1 mapping throughput is recorded above;
 no disconnected acceptance run was performed.
+
+## Cached short live-demo form
+
+`backend/demo_forms/dswd-pantawid-data-request.pdf` is an unchanged, one-page official [DSWD Pantawid Data Request Form](https://pantawid.dswd.gov.ph/wp-content/uploads/2020/07/PMED-Data-Request-Form.pdf), cached locally on 2026-10-10. The live demo does not need the government website to be reachable. Provenance and the SHA-256 are recorded in `skills/government-form-assistant/assets/forms/SOURCES.md`.
+
+In the frontend, create a workspace and use **Upload PDF** to select this cached file. For a short synthetic demo, answer a few name/contact/request questions, choose **Finish partial**, review the preview and remaining blanks, confirm the draft, and download its separate PDF. This is a data-request form, not an AICS benefit application; existing DSWD/SSS defaults remain unchanged. Never enter real personal information or sign/submit the form.
+
+The backend's actual PDF inspection accepted the cached file as `fixed_layout`: one page, native text (no OCR), 25 extracted layout slots, and a protected signature region. No tests or model calls were run for this cache; mapping and end-to-end completion have not been verified.
 

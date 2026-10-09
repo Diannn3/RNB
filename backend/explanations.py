@@ -19,14 +19,24 @@ def _reply(message, status, citations=None):
             "status": status, "citations": citations or []}
 
 
-def explain(query: str) -> dict:
-    """Return a sourced service explanation, clarification, or explicit abstention."""
+def explain(query: str, structure: dict | None = None) -> dict:
+    """Look up a service term or identify a selected form from extracted text."""
     unsupported = ("The local demo corpus does not cover that request. Ask about DSWD AICS, "
-                   "SSS membership or E-1, or PhilHealth membership or PMRF. "
+                   "Pantawid data requests, SSS membership or E-1, or PhilHealth membership or PMRF. "
                    "This demo cannot determine eligibility, approve benefits, or submit applications.")
     if not isinstance(query, str) or not query.strip() or len(query) > 300:
         return _reply(unsupported, "abstained")
     request = query.strip().lower().rstrip(".?!").strip()
+    entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
+    if re.fullmatch(r"(?:please )?(?:(?:can|could) you )?explain (?:this|the) form", request):
+        if structure is None:
+            return _reply("Select an uploaded PDF to explain its form.", "needs_input")
+        text = f" {_normalize(' '.join(page['text'] for page in structure['pages']))} "
+        candidates = [
+            entry for entry in entries if entry.get("document_markers")
+            and all(f" {_normalize(marker)} " in text for marker in entry["document_markers"])
+        ]
+        return _explanation(candidates, unsupported)
     patterns = (
         r"(?:please )?(?:(?:can|could) you )?(?:define|explain) (.+)",
         r"(?:please )?(?:give me|provide) (?:a |the )?definition (?:of|for) (.+)",
@@ -46,7 +56,7 @@ def explain(query: str) -> dict:
     if not wanted:
         return _reply(unsupported, "abstained")
     candidates, best = [], 0
-    for entry in json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8")):
+    for entry in entries:
         score = 0
         for term in (entry["term"], *entry["aliases"]):
             normalized = _normalize(term)
@@ -63,6 +73,10 @@ def explain(query: str) -> dict:
                 candidates.clear()
                 best = score
             candidates.append(entry)
+    return _explanation(candidates, unsupported)
+
+
+def _explanation(candidates, unsupported):
     if not candidates:
         return _reply(unsupported, "abstained")
     if len(candidates) > 1:

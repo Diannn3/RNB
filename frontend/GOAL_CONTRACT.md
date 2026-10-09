@@ -1,13 +1,18 @@
-# Implementation contract
+# Live frontend acceptance contract
 
-Objective: implement the approved PapelLess frontend, preserve original files, and deliver local preview plus evidence of behavior.
-Current acceptance: a graphite single-composer interview confirms every editable field; required answers and explicit optional blanks precede verification; Continue asks whether information is correct; Yes creates an atomic revision-bound review snapshot; export requires PDF or Word selection. Preserve typed cancellation, provenance, v1/v2 migration and session privacy. Verify sequential intent handling, route gates, corrections, PDF/DOCX values and three-browser accessibility.
-Delivery covers manual/sample modes. Live backend integration is a separate gate. Review the three new stage screens before completing the flow. Final exports require current confirmation; the older incomplete-export choice is superseded.
-Allowed: this checkout and its generated artifacts; append a Codex context log in Fensalir. Forbidden: modify immutable source assets, transmit document contents, change repo visibility, deploy, submit forms or sign documents.
-Acceptance: build and unit checks; Chromium/Firefox/WebKit primary flows; upload/manual fields/answer sheet; isolated synthetic sample; source navigation; approval invalidation; matching export bytes; schema/hash-checked restoration; keyboard/reduced motion/viewport checks.
-Budget: no paid services; bounded visual review of key screens then one completed-site batch and confirmation. Stop and replan after two identical zero-progress failures.
-Maker: root implementation agent. Checker: deterministic commands plus independent frontend critic. Screens and receipts are evidence, not award or compliance certification.
+Implement [API_CONTRACT.md](../API_CONTRACT.md) end to end in the frontend while preserving the approved landing identity, GSAP narrative, supplied assets, and light workspace with an explicit dark toggle.
 
-Theme revision: light workspace by default, explicit session-only dark toggle, preserve interview state/document rendering, verify both palettes and commit/push a descriptive branch to Diannn3/RNB. Allowed remote action: push this feature branch; no merge or deployment.
+## Required behavior
 
-Hero integration: merge origin/audit/papelless-landing-page (225887d) into a new integration branch, retain working SignatureSequence and light/default theme, combine scoped styles, adapt legacy narrative tests, build and verify landing/workspace regressions. No main merge/deployment.
+- Use only the live localhost API via a same-origin proxy. Synthetic PDFs only; no authentication and no remote fallback.
+- Create/open workspaces; upload/list PDFs; load structure and original artifacts; navigate grounded box/widget evidence with correct zero-based API to one-based viewer pages and PDF viewport geometry.
+- Support document conversation answers, skips, conflict clarification and partial finalization, plus direct grounded source-slot edits, comparisons, corpus explanations and returned request status inspection.
+- Prepare partial or complete drafts, show the returned PNG preview and missing fields, require explicit human review confirmation before PDF download, and invalidate confirmation when document/values/draft change.
+- Surface backend/validation/availability errors truthfully with request IDs where returned. Do not substitute invented answers, manual flow or sample success.
+- Explain local API persistence: metadata and files survive restarts; conversation working memory does not. No delete endpoint exists. Browser clearing is not server deletion.
+- Remove sample/manual workflows, project restore/download, local PDF generation and Word export. Landing fictional illustrations are not real workflows or downloadable drafts.
+- No signing, submission, eligibility decisions, personal-data uploads, deployment or unrelated asset changes.
+
+## Evidence boundary
+
+The user permits BUILD ONLY and forbids tests, model calls and backend startup in this assignment. The integration owner performs the build and manual frontend inspection. Surviving regression checks may be run only under separate authorization. Earlier manual/sample receipts are superseded and do not establish live integration correctness, accessibility certification or production readiness. Do not report checks that were not exercised.

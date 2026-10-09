@@ -1,3 +1,5 @@
+> Historical receipt only: checks below apply to the removed manual/sample implementation, not the live integration. See [current acceptance](../GOAL_CONTRACT.md) and [integration](INTEGRATION.md). Live uploads/artifacts persist in the local API; partial drafts require human confirmation before PDF-only download. No remote fallback, project restoration or Word export remains.
+
 # Conversational interview completion receipt
 
 Date: October 9, 2026. Local branch: update/papelless-conversational-interview. No push, deployment or visibility change.

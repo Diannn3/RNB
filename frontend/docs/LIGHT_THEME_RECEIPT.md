@@ -1,3 +1,5 @@
+> Historical receipt, not live integration evidence. Light default and explicit dark toggle remain; the old manual/sample journey and Word preview are removed. Current synthetic-only live API uploads/artifacts persist locally, with no remote fallback. Partial drafts require human confirmation before PDF download. See [integration](INTEGRATION.md).
+
 # Light-default workspace receipt
 
 October 9, 2026. User requested a light default and an optional dark mode, then commit and push.

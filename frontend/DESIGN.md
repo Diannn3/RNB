@@ -101,7 +101,7 @@ Workspace: quiet two-pane document/review composition, optional resizable separa
 GSAP owns showcase motion; Anime owns workspace microinteractions. Neither animates the other's elements. Reduced motion uses readable static narrative. All authored document data is fictional and labeled.
 No headline eyebrows, invented metrics, testimonials, decorative dots, repetitive icon tiles or generic feature-card grid. Brand gradients belong only to the supplied logos.
 
-User revision October 9: workspace defaults to light, with an explicit header dark-mode toggle. Theme stays during stage navigation in this session; refresh returns to light. PDF pages and Word content preview retain paper colors. Showcase remains the approved graphite composition.
+User revision October 9: workspace defaults to light, with an explicit header dark-mode toggle. Theme stays during stage navigation in this session; refresh returns to light. PDF pages retain paper colors. Showcase remains the approved graphite composition.
 
 ## Colors
 
@@ -157,7 +157,7 @@ Hero actions and header launch use gently curved 10px corners. Source and review
 
 ### Buttons
 
-"Try the sample" is the ink primary action linking to `/app/sample`; "Start with a form" is the raised pale secondary action linking to `/app`. Both use the frontmatter action typography, 13px by 18px padding, and a 48px minimum height. Actions wrap as needed. Primary hover uses `#34373c`; secondary hover uses `#e9ebe7`. Keyboard focus retains the shared 3px focus outline with a 4px offset.
+"Open workspace" is the ink primary action linking to `/app`; "Start with a form" is the raised pale secondary action also linking to `/app`. The former sample entry has been removed for the live API cutover. Both use the frontmatter action typography, 13px by 18px padding, and a 48px minimum height. Actions wrap as needed. Primary hover uses `#34373c`; secondary hover uses `#e9ebe7`. Keyboard focus retains the shared 3px focus outline with a 4px offset.
 
 ### Navigation
 
@@ -172,7 +172,7 @@ The source panel shows "Student record.pdf", "Supporting passage", the quote "Fu
 ### Do:
 
 - **Do** preserve the supplied black PNG wordmark and locally hosted Plus Jakarta Sans in the hero and header.
-- **Do** keep the two-line hero heading and the "Try the sample" primary / "Start with a form" secondary hierarchy.
+- **Do** keep the two-line hero heading and the "Open workspace" primary / "Start with a form" secondary hierarchy.
 - **Do** keep the shared form upright and the source and pending review panels legible in normal document flow.
 - **Do** retain the bounded glass fallback, neutral grid, visible focus, and reduced-motion behavior.
 - **Do** keep the incumbent lower-section and workspace visual contract in force.
@@ -182,3 +182,17 @@ The source panel shows "Student record.pdf", "Supporting passage", the quote "Fu
 - **Don't** add a mascot to the hero or redraw the supplied wordmark.
 - **Don't** present the hero's pending review as a completed green approval.
 - **Don't** extend the hero glass, paired shadows, or responsive composition into workspace components as a new global rule.
+
+## Live API interaction contract
+
+The landing's fictional form, source and five-stage GSAP story remain illustrative only; they do not initialize a sample workspace or generate sample downloads. Entry links lead to `/app`. Copy states synthetic-only use, local API persistence and no remote fallback.
+
+The quiet light/dark workspace uses the live API contract for uploads, structure, grounded source-slot edits, conversation, comparison, corpus explanations, draft PNG preview and PDF-only export. Partial drafts may have missing fields; show those fields and require explicit human review confirmation before download. Changes invalidate confirmation. There is no manual/offline fallback, browser project restore or Word export. Documents are transmitted to the local API and persisted there; do not claim browser-only privacy.
+
+Live workspace typography retains the incumbent scale: 12–13px metadata, 14px secondary copy, 16px inputs/body, 22px section headings, 28–38px pane headings, and 32–48px start heading. The `/app` workspace is viewport-height with independently scrolling PDF and conversation panes. Conversation and Review are the only tool tabs. User replies are right-aligned neutral 18px bubbles; assistant replies remain unboxed, without repeated role eyebrows or row dividers. The persistent 16px-radius composer has an ink send control and inline explanation/comparison suggestions. The first uploaded form automatically requests its first question; supporting uploads do not interrupt a pending form. Explanations and comparisons appear in the transcript with their official citations and inspectable evidence. Narrow screens retain Work / Document switching and a compact header. Draft review offers both the first-page PNG and a full multipage PDF viewer before confirmation. These workspace refinements do not redefine the landing hero.
+
+The centered entry screen reserves a 112px mascot slot above its heading for the missing `pely.webp` asset; no substitute illustration or broken image is rendered. Reopening uses a persisted filename dropdown, not opaque-ID text entry. After upload, the workspace metadata and upload/service toolbar are hidden behind the header's Workspace tools control. Pending responses show a semantic status with a rotating spinner; reduced motion keeps it static.
+
+
+## Typography update � 2026-10-10
+Self-hosted Manrope Variable for headings and Atkinson Hyperlegible Next Variable for body text, labels and controls. Supplied logo images and source document typography remain intact.

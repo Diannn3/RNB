@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, Check, FileText } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { Evidence } from "./components";
-const SampleDraft = lazy(() => import("./SampleDraft"));
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 const steps = ["Blank field", "Source", "Suggestion", "Your review", "Draft"];
 export default function SignatureSequence() {
@@ -95,8 +94,8 @@ export default function SignatureSequence() {
               </li>
             ))}
           </ol>
-          <Link to="/app/sample" className="text-button">
-            Explore the sample <ArrowRight size={17} />
+          <Link to="/app" className="text-button">
+            Open the workspace <ArrowRight size={17} />
           </Link>
         </div>
         <div className="signature-phases">
@@ -192,12 +191,13 @@ export default function SignatureSequence() {
               <p>Full name</p>
               <div className="story-field">Alex Reyes</div>
               <p className="story-caption">
-                Reviewed entries are included. Unreviewed entries remain blank.
+                This fictional illustration is not a downloadable draft.
+                Live drafts may be partial; review and confirm before PDF download.
                 Nothing is signed or submitted.
               </p>
-              <Suspense fallback={<p>Opening draft controls…</p>}>
-                <SampleDraft />
-              </Suspense>
+              <Link to="/app" className="text-button">
+                Prepare a live draft <ArrowRight size={17} />
+              </Link>
             </div>
           </article>
         </div>

@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @theme {
-  --font-sans: "Plus Jakarta Sans Variable", sans-serif;
+  --font-display: "Manrope Variable", sans-serif;
+  --font-sans: "Atkinson Hyperlegible Next Variable", sans-serif;
 }
 :root {
-  font-family: "Plus Jakarta Sans Variable", sans-serif;
+  font-family: "Atkinson Hyperlegible Next Variable", sans-serif;
   color: #17191c;
   background: #fafaf8;
   font-synthesis: none;
@@ -2516,3 +2517,6 @@ html[data-workspace-theme="dark"] .modal .button.primary { background: var(--ink
     top: -11px;
   }
 }
+
+/* Manrope display headings; Atkinson Hyperlegible Next working text. */
+h1, h2, h3, h4, h5, h6 { font-family: "Manrope Variable", sans-serif; }
