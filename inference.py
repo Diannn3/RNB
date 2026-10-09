@@ -71,8 +71,10 @@ def _dump(value):
 
 
 def _data(value):
-    # JSON escaping prevents uploaded text from closing the literal delimiter.
-    return "UNTRUSTED_DATA_BEGIN\n" + _dump(value) + "\nUNTRUSTED_DATA_END"
+    # Neutralize template control tokens and literal excerpt delimiters inside uploaded strings.
+    encoded = _dump(value).replace("<", "\\u003c").replace(">", "\\u003e")
+    encoded = encoded.replace("UNTRUSTED_DATA", "\\u0055NTRUSTED_DATA")
+    return "UNTRUSTED_DATA_BEGIN\n" + encoded + "\nUNTRUSTED_DATA_END"
 
 
 def _tokens(messages, tools=None):
@@ -175,7 +177,12 @@ class Facts(StrictModel):
     facts: list[Fact] = Field(max_length=20)
 
 
+def _schema_instruction(instruction, model):
+    return instruction + "\nReturn JSON matching this schema:\n" + _dump(model.model_json_schema())
+
+
 def _json_call(instruction, data, skill, model, reserve=2048):
+    instruction = _schema_instruction(instruction, model)
     messages = [{"role": "system", "content": SYSTEM + "\n" + skill + "\n" + instruction},
                 {"role": "user", "content": _data(data)}]
     for attempt in range(2):
@@ -201,8 +208,9 @@ def _sources(structure, writable=False):
     return sources
 
 
-def _batches(structure, skill, instruction, sources, size):
+def _batches(structure, skill, instruction, sources, size, model):
     # Every source is considered; never truncate a whole document or silently skip pages.
+    instruction = _schema_instruction(instruction, model)
     offset = 0
     metadata = {key: structure[key] for key in ("document_id", "document_kind", "page_count")}
     metadata["pages"] = [{key: page[key] for key in ("page", "width", "height")}
@@ -255,7 +263,7 @@ def map_form(structure, skill):
         if not sources:
             raise InferenceError("Document contains no grounded writable form targets")
         groups = []
-        for excerpt in _batches(structure, skill, instruction, sources, 12):
+        for excerpt in _batches(structure, skill, instruction, sources, 12, Proposals):
             proposals = _json_call(instruction, excerpt, skill, Proposals, reserve=3072)
             candidates = []
             for candidate in sorted(proposals.candidates, key=lambda item: item.rank):
@@ -297,7 +305,7 @@ def extract_facts(structure, skill):
     with _LOCK:
         sources = _sources(structure)
         facts = []
-        for excerpt in _batches(structure, skill, instruction, sources, 20):
+        for excerpt in _batches(structure, skill, instruction, sources, 20, Facts):
             proposal = _json_call(instruction, excerpt, skill, Facts, reserve=3072)
             for item in proposal.facts:
                 fact = item.model_dump(exclude_none=True)

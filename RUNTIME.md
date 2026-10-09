@@ -1,0 +1,86 @@
+# Local runtime
+
+The provisioned binaries/models live in ignored `.runtime/`; no sudo is needed.
+Run commands from the repository root. The API and inference are localhost-only.
+Use synthetic data only. Do not enable llama-server prompt logging or built-in tools.
+
+## Provisioned versions
+
+- Official `LiquidAI/LFM2.5-2.6B-GGUF`, repository revision
+  `e7caca5d835a3901a8e0d63e94009429bafafdfc`, `LFM2.5-2.6B-Q4_K_M.gguf`:
+  `.runtime/models/LFM2.5-2.6B-Q4_K_M.gguf` (1,674,455,040 bytes).
+- llama.cpp source revision `609290be6b15db02f9d73443435403cbff6e7802`:
+  `.runtime/llama.cpp/build/bin/llama-server`, CPU Release build (`-j 2`).
+- Rootless Void packages: Tesseract 5.5.2, Leptonica 1.87.0, English tessdata;
+  `.runtime/tesseract/usr/bin/tesseract` links to packaged `tesseract-ocr`.
+
+## Start inference
+
+```sh
+.runtime/llama.cpp/build/bin/llama-server \
+  --model .runtime/models/LFM2.5-2.6B-Q4_K_M.gguf \
+  --alias LFM2.5-2.6B-Q4_K_M --host 127.0.0.1 --port 8081 \
+  --ctx-size 8192 --parallel 1 --threads 4 --threads-batch 4 \
+  --batch-size 256 --ubatch-size 128 --cache-ram 0 \
+  --jinja --reasoning-budget 0 --no-webui --no-slots --offline --log-disable
+```
+
+There is one 8,192-token slot. Inference reserves output and counts the actual
+rendered chat template using `/apply-template` and `/tokenize`, including tool
+schemas. Mapping/fact extraction splits source-linked excerpts without skipping
+pages. Model temperature is zero; output reserves are 3,072 tokens for mapping
+and facts, 256 for a question, and 1,024 for each tool round. Connections time out
+explicitly after 240 seconds; there is no remote fallback or proxy use.
+
+## Start the API with rootless OCR
+
+```sh
+export PATH="$PWD/.runtime/tesseract/usr/bin:$PWD/.venv/bin:$PATH"
+export LD_LIBRARY_PATH="$PWD/.runtime/tesseract/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export TESSDATA_PREFIX="$PWD/.runtime/tesseract/usr/share/tessdata"
+export PAPELLESS_LLAMA_URL=http://127.0.0.1:8081
+.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+## Integration checks (run after implementation)
+
+The following must use the actual local model, not a mock or reference map.
+The tool runner takes seven allowlisted names only; each handler registration is
+`(callable, Pydantic output type)`. Scope contains `document_ids` and
+`workspace_ids`. Tool outputs are typed before being delimited as untrusted data.
+
+```sh
+.venv/bin/python - <<'PY'
+from inference import StrictModel, health, run_tools
+class Inspection(StrictModel):
+    document_id: str
+    document_kind: str
+    page_count: int
+calls = []
+def inspect_document(document_id):
+    calls.append(document_id)
+    return Inspection(document_id=document_id, document_kind="synthetic", page_count=1)
+print(health())
+result = run_tools(
+    [{"role": "user", "content": "Call inspect_document(document_id='doc-demo') exactly once. Then report its page count. Do not guess without calling the tool."}],
+    {"inspect_document": (inspect_document, Inspection)},
+    {"document_ids": {"doc-demo"}, "workspace_ids": set()},
+)
+assert calls == ["doc-demo"], calls
+assert result["content"]
+print("Actual LFM typed tool call completed")
+PY
+```
+
+`parse_tool_calls` supports both OpenAI function-call objects and the native LFM
+`<|tool_call_start|>[inspect_document(document_id='doc-demo')]<|tool_call_end|>`
+format using restricted AST literal parsing, never code execution. Unknown tools,
+extra arguments, cross-workspace IDs and invalid typed outputs are errors.
+There are at most three executed tool rounds and one argument/parsing retry.
+
+Also run `python -m unittest test_inference` and exercise `map_form`,
+`ask_question` and `extract_facts` against extracted fixture structures. Direct
+operations use schema-constrained JSON; mappings derive geometry/options from
+actual source targets, not model-generated coordinates. PDF validation remains
+the final export gate. Record actual-model latency and memory measurements after
+these checks; no model inference/performance check was performed during provisioning.
