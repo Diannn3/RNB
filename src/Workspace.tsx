@@ -11,6 +11,8 @@ import { useDropzone } from "react-dropzone";
 import { animate, createScope } from "animejs";
 import {
   ArrowRight,
+  Moon,
+  Sun,
   Check,
   ChevronDown,
   Download,
@@ -53,6 +55,8 @@ import { confirmationKey, handled, interviewComplete, pendingFields } from "./in
 const PdfViewer = lazy(() => import("./PdfViewer"));
 type Tab = VerificationTab;
 export default function SessionLayout() {
+  const [darkMode, setDarkMode] = useState(false);
+  useEffect(() => { document.documentElement.dataset.workspaceTheme = darkMode ? "dark" : "light"; return () => { delete document.documentElement.dataset.workspaceTheme; }; }, [darkMode]);
   const session = useSession();
   const chatRunning = useJourney((s) => s.running);
   const progress = useJourney((s) => s.progress);
@@ -930,7 +934,7 @@ export default function SessionLayout() {
   );
   return (
     <div
-      className={`workspace ${stage === "conversation" && !unsafe ? "workspace-chat" : ""}`}
+      className={`workspace ${darkMode ? "workspace-dark" : "workspace-light"} ${stage === "conversation" && !unsafe ? "workspace-chat" : ""}`}
       onClickCapture={(event) => {
         const button = (event.target as HTMLElement).closest("button");
         if (button && !button.disabled) button.focus({ preventScroll: true });
@@ -940,12 +944,13 @@ export default function SessionLayout() {
         Skip to workspace
       </a>
       <header className="workspace-header">
-        <Brand dark={stage === "conversation" && !unsafe} />
+        <Brand dark={darkMode} />
         <div className="workspace-title">
           <span>{isSample ? "Sample workspace" : "Your workspace"}</span>
           {isSample && <span className="sample-label">Fictional records</span>}
         </div>
         <div className="workspace-actions">
+          <button className="icon-button theme-toggle" aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"} title={darkMode ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDarkMode((value) => !value)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
           <button
             className="icon-button"
             aria-label="Clear workspace"

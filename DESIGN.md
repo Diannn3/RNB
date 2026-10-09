@@ -6,3 +6,5 @@ First viewport: oversized headline beside a legible fictional paper form, suppor
 Workspace: quiet two-pane document/review composition, optional resizable separator. Narrow screens use Document / Review / Questions tabs. Review at 1366x768 and 200% zoom.
 GSAP owns showcase motion; Anime owns workspace microinteractions. Neither animates the other's elements. Reduced motion uses readable static narrative. All authored document data is fictional and labeled.
 No headline eyebrows, invented metrics, testimonials, decorative dots, repetitive icon tiles or generic feature-card grid. Brand gradients belong only to the supplied logos.
+
+User revision October 9: workspace defaults to light, with an explicit header dark-mode toggle. Theme stays during stage navigation in this session; refresh returns to light. PDF pages and Word content preview retain paper colors. Showcase remains the approved graphite composition.
