@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @theme {
-  --font-sans: "Plus Jakarta Sans Variable", sans-serif;
+  --font-display: "Manrope Variable", sans-serif;
+  --font-sans: "Atkinson Hyperlegible Next Variable", sans-serif;
 }
 :root {
-  font-family: "Plus Jakarta Sans Variable", sans-serif;
+  font-family: "Atkinson Hyperlegible Next Variable", sans-serif;
   color: #17191c;
   background: #fafaf8;
   font-synthesis: none;
@@ -2641,3 +2642,6 @@ html[data-workspace-theme="dark"] .modal .button.primary { background: var(--ink
 @media (max-width: 600px) { .landing .hero h1 { font-size: clamp(2.625rem, 1.5rem + 6vw, 4rem); } .landing-steps, .landing-finish { padding: 48px 24px; } .landing-steps ol { grid-template-columns: 1fr; gap: 24px; } }
 
 .landing-steps, .landing-finish { color: #17191c; }
+
+/* Manrope carries the display voice; Atkinson keeps working text legible. */
+h1, h2, h3, h4, h5, h6 { font-family: "Manrope Variable", sans-serif; }

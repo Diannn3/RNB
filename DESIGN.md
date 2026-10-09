@@ -185,3 +185,6 @@ The source panel shows "Student record.pdf", "Supporting passage", the quote "Fu
 
 ## Landing simplification — 2026-10-10
 Preserve the approved light paper/grid hero, supplied brand and document/source composition. Follow it with a four-stage Upload / Conversation / Verification / Export explanation and a compact light closing/footer. Remove the repeated cinematic and interactive narratives from the route. Pending answers carry no approval check. Keep one reduced-motion-aware hero entrance. Workspace themes and interview behavior are outside this change.
+
+## Typography update — 2026-10-10
+User-selected combination: self-hosted Manrope Variable for headings and Atkinson Hyperlegible Next Variable for body text, labels and controls. The supplied image wordmark remains the brand lettering. PDF source document typography remains intrinsic to the document.
