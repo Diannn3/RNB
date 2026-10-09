@@ -258,6 +258,8 @@ def _protected_regions(page, kind):
         text, rect = label["text"], label["rect"]
         if kind == "cf1" and re.search(r"PART\s*III", text, re.I):
             regions.append([0, 0, width, min(height, rect[3] + 3)])
+        if kind not in {"cf1", "pmrf"} and re.search(r"\b(?:provider|employer)\b", text, re.I):
+            regions.append([0, 0, width, min(height, rect[3] + 3)])
         if re.search(r"(?:for\s+)?philhealth\s+use\s+only", text, re.I):
             regions.append([max(0, rect[0] - 5) if rect[0] > width / 2 else 0,
                             0, width, min(height, rect[3] + 3)])
@@ -331,7 +333,8 @@ def _layout_boxes(page, segments):
             boxes.append({"id": f"p{page['page']}-b{len(boxes)}", "text": label["text"],
                           "rect": rect, "confidence": label["confidence"], "source": "layout",
                           "type": "checkbox" if is_check else "text", "options": ["Off", "Yes"] if is_check else [],
-                          "protected": any(_intersects(rect, region) for region in page["protected_regions"])})
+                          "protected": bool(_PROTECTED.search(label["text"]))
+                          or any(_intersects(rect, region) for region in page["protected_regions"])})
     return boxes
 
 
@@ -488,7 +491,7 @@ def _write_values(structure, mapping, values):
         if "widget_id" in field and widgets[field["widget_id"]]["max_length"] and len(value) > widgets[field["widget_id"]]["max_length"]:
             raise ValueError("Field value exceeds widget length")
         rect = field["rect"]
-        if field["type"] == "text" and (rect[3] - rect[1] < 9 or stringWidth(value, "Helvetica", 9) > rect[2] - rect[0] - 2):
+        if field["type"] in {"text", "choice"} and (rect[3] - rect[1] < 9 or stringWidth(value, "Helvetica", 9) > rect[2] - rect[0] - 2):
             raise ValueError("Field value overflows its writable region")
         supplied.append((field, value))
     return supplied
