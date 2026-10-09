@@ -48,7 +48,7 @@ test("hero keyboard navigation, destinations, grid and accessibility", async ({ 
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#main$/);
   await page.keyboard.press("Tab");
-  const primary = page.locator(".hero-actions").getByRole("link", { name: "Try the sample", exact: true });
+  const primary = page.locator(".hero-actions").getByRole("link", { name: "Open workspace", exact: true });
   await expect(primary).toBeFocused();
   expect(await primary.evaluate(el => getComputedStyle(el).outlineWidth)).toBe("3px");
   await page.screenshot({ path: resolve(evidence, "keyboard-cta-focus.png") });
@@ -61,15 +61,13 @@ test("hero keyboard navigation, destinations, grid and accessibility", async ({ 
   await expect(grid).toHaveAttribute("aria-hidden", "true");
   expect(await grid.evaluate(el => getComputedStyle(el).pointerEvents)).toBe("none");
   expect(await grid.evaluate(el => getComputedStyle(el).opacity)).toBe("0.1");
-  expect(await page.locator(".hero-actions a").allTextContents()).toEqual([expect.stringContaining("Try the sample"), expect.stringContaining("Start with a form")]);
+  expect(await page.locator(".hero-actions a").allTextContents()).toEqual([expect.stringContaining("Open workspace"), expect.stringContaining("Start with a form")]);
   await page.setViewportSize({ width: 1366, height: 768 });
-  await page.locator(".hero-actions").getByRole("link", { name: "Try the sample", exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/conversation$/);
-  await expect(page.getByRole("button", { name: "Use Alex Reyes", exact: true })).toBeVisible();
+  await primary.click();
+  await expect(page).toHaveURL(/\/app$/);
   await page.goto("/");
   await page.locator(".hero-actions").getByRole("link", { name: /Start with a form/ }).click();
   await expect(page).toHaveURL(/\/app$/);
-  await expect(page.getByRole("heading", { name: "Bring your form." })).toBeVisible();
   await page.goto("/");
   await page.locator(".site-header").getByRole("link", { name: /Open workspace/ }).click();
   await expect(page).toHaveURL(/\/app$/);

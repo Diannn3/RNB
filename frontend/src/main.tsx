@@ -18,8 +18,8 @@ class ErrorBoundary extends React.Component<
       <main className="fatal">
         <h1>Something interrupted the workspace.</h1>
         <p>
-          Your documents have not been sent anywhere. Reload to start a new
-          session.
+          Uploaded documents remain on the local API. Save your workspace ID
+          before reloading; the browser conversation and edits will be cleared.
         </p>
         <button
           className="button primary"

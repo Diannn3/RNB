@@ -110,16 +110,16 @@ export default function Landing() {
               Leave with a draft that makes sense.
             </p>
             <div className="hero-actions">
-              <Link to="/app/sample" className="button hero-primary">
-                Try the sample <ArrowRight size={19} aria-hidden="true" />
+              <Link to="/app" className="button hero-primary">
+                Open workspace <ArrowRight size={19} aria-hidden="true" />
               </Link>
               <Link to="/app" className="button hero-secondary">
                 Start with a form
               </Link>
             </div>
             <span className="hero-footnote">
-              <span>Fictional sample. Real PDFs use manual editing.</span>
-              <span>Your documents stay in this browser session.</span>
+              <span>Synthetic documents only. Illustrations are fictional.</span>
+              <span>Uploads persist in the local API. No remote fallback.</span>
             </span>
           </div>
           <div className="hero-art" role="group" aria-label="Fictional preview: form, supporting record, and pending review">
@@ -241,7 +241,7 @@ export default function Landing() {
                 {saved
                   ? "Your answer is saved in this demonstration."
                   : approved
-                    ? "Reviewed. Open the sample workspace to prepare a draft."
+                    ? "Illustrative review only. Open the workspace for a live draft."
                     : " "}
               </p>
             </div>
@@ -264,14 +264,15 @@ export default function Landing() {
             <ShieldCheck size={26} />
             <h3>Room for your judgment.</h3>
             <p>
-              Real PDFs can be filled and reviewed manually. The sample
-              demonstrates evidence-linked suggestions.
+              Upload synthetic PDFs to the local API to inspect evidence,
+              resolve conflicts, and prepare a draft.
             </p>
             <p>
-              The AI agent is not connected yet. Nothing is signed or submitted.
+              Partial drafts are allowed. Confirm your review before downloading a PDF.
+              Nothing is signed or submitted.
             </p>
-            <Link to="/app/sample" className="text-button">
-              Try the complete sample <ArrowRight size={16} />
+            <Link to="/app" className="text-button">
+              Open the workspace <ArrowRight size={16} />
             </Link>
           </div>
         </section>
