@@ -238,3 +238,120 @@ def ask_question(field, skill):
                    "if applicable. Ask only for synthetic patient-answerable data.")
     with _LOCK:
         return _json_call(instruction, field, skill, Question, reserve=256).question
+
+
+def map_form(structure, skill):
+    instruction = (
+        "Map all patient-answerable writable sources in this excerpt. Return ranked candidates "
+        "(rank 1 best, at most 3), each with fields: name (stable semantic snake_case), label, "
+        "required (boolean), and exactly one existing box_id or widget_id. Do not include "
+        "rectangles or types: the backend copies those from the source. Use names such as "
+        "member_last_name, member_first_name, patient_date_of_birth, philhealth_number, "
+        "patient_sex consistently across documents. Never map protected fields. "
+        "Each candidate must cover the excerpt's supported fields without duplicate targets."
+    )
+    with _LOCK:
+        sources = _sources(structure, writable=True)
+        if not sources:
+            raise InferenceError("Document contains no grounded writable form targets")
+        groups = []
+        for excerpt in _batches(structure, skill, instruction, sources, 12):
+            proposals = _json_call(instruction, excerpt, skill, Proposals, reserve=3072)
+            candidates = []
+            for candidate in sorted(proposals.candidates, key=lambda item: item.rank):
+                fields = []
+                for proposed in candidate.fields:
+                    field = proposed.model_dump(exclude_none=True)
+                    source = _target(field, excerpt["sources"])
+                    if source.get("protected"):
+                        raise InferenceError("Local model mapped a protected field")
+                    field.update(page=source["page"], rect=source["rect"],
+                                 type=source.get("type", "text"),
+                                 options=source.get("options", []), protected=False)
+                    fields.append(field)
+                candidates.append(fields)
+            groups.append(candidates)
+        result = []
+        for index in range(min(len(group) for group in groups)):
+            fields = [field for group in groups for field in group[index]]
+            names = [field["name"] for field in fields]
+            targets = [field.get("box_id") or field.get("widget_id") for field in fields]
+            if len(set(names)) != len(names) or len(set(targets)) != len(targets):
+                continue
+            result.append({"rank": index + 1, "fields": fields})
+        if not result:
+            raise InferenceError("Local model produced no valid nonduplicated mapping")
+        return result
+
+
+def extract_facts(structure, skill):
+    instruction = (
+        "Extract only explicit identity, relationship, date and numeric facts. Return facts "
+        "with stable semantic snake_case name, exact literal value, document_id, page, "
+        "exactly one existing box_id or widget_id, and confidence between 0 and 1. "
+        "Do not treat empty form labels, instructions or placeholders as patient facts. "
+        "Never infer values or normalize spelling. Use semantic names consistently: "
+        "member_last_name, member_first_name, patient_date_of_birth, philhealth_number, "
+        "patient_sex. An empty facts list is correct if no facts are present."
+    )
+    with _LOCK:
+        sources = _sources(structure)
+        facts = []
+        for excerpt in _batches(structure, skill, instruction, sources, 20):
+            proposal = _json_call(instruction, excerpt, skill, Facts, reserve=3072)
+            for item in proposal.facts:
+                fact = item.model_dump(exclude_none=True)
+                source = _target(fact, excerpt["sources"])
+                evidence = str(source.get("value") or source.get("text") or "")
+                if (fact["document_id"] != structure["document_id"]
+                        or fact["page"] != source["page"] or fact["value"] not in evidence):
+                    raise InferenceError("Local model fact is not grounded in its source")
+                fact["confidence"] = float(source.get("confidence", 1))
+                facts.append(fact)
+        return facts
+
+
+TOOLS = {
+    "inspect_document": DocumentArgs,
+    "extract_structure": DocumentArgs,
+    "map_form": DocumentArgs,
+    "ask_next_question": WorkspaceArgs,
+    "find_conflicts": WorkspaceArgs,
+    "lookup_medlineplus": LookupArgs,
+    "validate_and_export": WorkspaceArgs,
+}
+
+
+def parse_tool_calls(message):
+    """Parse OpenAI calls or LFM's literal Python-style call-list, never execute code."""
+    if message.get("tool_calls"):
+        calls = []
+        for item in message["tool_calls"]:
+            function = item["function"]
+            arguments = function["arguments"]
+            if isinstance(arguments, str):
+                arguments = json.loads(arguments)
+            if not isinstance(arguments, dict):
+                raise ValueError("Tool arguments must be an object")
+            calls.append({"name": function["name"], "arguments": arguments})
+        return calls
+    content = message.get("content") or ""
+    marker = re.fullmatch(r"\s*<\|tool_call_start\|>(.*?)<\|tool_call_end\|>\s*",
+                          content, flags=re.S)
+    if not marker:
+        if "<|tool_call" in content:
+            raise ValueError("Malformed LFM tool call")
+        return []
+    tree = ast.parse(marker.group(1), mode="eval").body
+    if not isinstance(tree, ast.List) or not 1 <= len(tree.elts) <= 7:
+        raise ValueError("Invalid LFM tool-call list")
+    calls = []
+    for call in tree.elts:
+        if (not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name)
+                or call.args or any(keyword.arg is None for keyword in call.keywords)):
+            raise ValueError("Invalid LFM tool call")
+        arguments = {keyword.arg: ast.literal_eval(keyword.value) for keyword in call.keywords}
+        if len(arguments) != len(call.keywords):
+            raise ValueError("Duplicate LFM tool arguments")
+        calls.append({"name": call.func.id, "arguments": arguments})
+    return calls
