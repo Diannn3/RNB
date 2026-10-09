@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException
+from pydantic import field_serializer
 from sqlmodel import Field, Session, SQLModel, create_engine
 
 
@@ -16,13 +17,19 @@ def now():
     return datetime.now(timezone.utc)
 
 
-class WorkspaceRecord(SQLModel, table=True):
+class _Record(SQLModel):
+    @field_serializer('created_at', 'updated_at', check_fields=False)
+    def utc_timestamp(self, value):
+        return value.replace(tzinfo=timezone.utc).isoformat()
+
+
+class WorkspaceRecord(_Record, table=True):
     id: str = Field(default_factory=opaque_id, primary_key=True)
     created_at: datetime = Field(default_factory=now)
     status: str = 'ready'
 
 
-class DocumentRecord(SQLModel, table=True):
+class DocumentRecord(_Record, table=True):
     id: str = Field(default_factory=opaque_id, primary_key=True)
     workspace_id: str = Field(foreign_key='workspacerecord.id', index=True)
     sha256: str
@@ -33,7 +40,7 @@ class DocumentRecord(SQLModel, table=True):
     created_at: datetime = Field(default_factory=now)
 
 
-class RequestRecord(SQLModel, table=True):
+class RequestRecord(_Record, table=True):
     id: str = Field(default_factory=opaque_id, primary_key=True)
     workspace_id: str = Field(foreign_key='workspacerecord.id', index=True)
     kind: str
@@ -43,7 +50,7 @@ class RequestRecord(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=now)
 
 
-class ArtifactRecord(SQLModel, table=True):
+class ArtifactRecord(_Record, table=True):
     id: str = Field(default_factory=opaque_id, primary_key=True)
     workspace_id: str = Field(foreign_key='workspacerecord.id', index=True)
     kind: str
