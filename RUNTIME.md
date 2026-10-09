@@ -285,3 +285,11 @@ GPU model loading and synthetic form completion were exercised during the
 authorized inference fix. Real CF-1 mapping throughput is recorded above;
 no disconnected acceptance run was performed.
 
+## Cached short live-demo form
+
+`backend/demo_forms/dswd-pantawid-data-request.pdf` is an unchanged, one-page official [DSWD Pantawid Data Request Form](https://pantawid.dswd.gov.ph/wp-content/uploads/2020/07/PMED-Data-Request-Form.pdf), cached locally on 2026-10-10. The live demo does not need the government website to be reachable. Provenance and the SHA-256 are recorded in `skills/government-form-assistant/assets/forms/SOURCES.md`.
+
+In the frontend, create a workspace and use **Upload PDF** to select this cached file. For a short synthetic demo, answer a few name/contact/request questions, choose **Finish partial**, review the preview and remaining blanks, confirm the draft, and download its separate PDF. This is a data-request form, not an AICS benefit application; existing DSWD/SSS defaults remain unchanged. Never enter real personal information or sign/submit the form.
+
+The backend's actual PDF inspection accepted the cached file as `fixed_layout`: one page, native text (no OCR), 25 extracted layout slots, and a protected signature region. No tests or model calls were run for this cache; mapping and end-to-end completion have not been verified.
+

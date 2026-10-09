@@ -46,3 +46,15 @@ Runtime source inspection observed writable layout regions on each default, but 
 | `synthetic-pmrf-acroform.pdf` | `c52793f3c0e141a5669828aabdfe61d6a76fd0e284892b9a5472059be81d3676` |
 
 The obsolete CF-1 semantic reference map was removed because it only described the former default claim workflow and had no runtime/test callers. `references/pmrf-reference-map.json` remains explicitly development-only; its fixed-layout metadata is corrected and its semantic candidates are not suitable as runtime mappings.
+
+## One-page backend live-demo cache
+
+On 2026-10-10, the operator requested an easier official form for the live demo. The unchanged DSWD Pantawid Pamilyang Pilipino Program **Data Request Form** is cached at `backend/demo_forms/dswd-pantawid-data-request.pdf` (repository-root path).
+
+- Official source: https://pantawid.dswd.gov.ph/wp-content/uploads/2020/07/PMED-Data-Request-Form.pdf
+- Retrieved: 2026-10-10; size: 529,908 bytes; SHA-256: `cd2cd3d238e1dce8675e0f5cd5a490ffa37f06db3e38f076938b94ba6fd77215`.
+- Actual backend `inspect_document` accepted the local copy: one page, `fixed_layout`, 72 native-text boxes, 25 derived layout slots, no AcroForm widgets, no encryption, and one protected region. No OCR or inference was used.
+- This is a simpler data-request demonstration, not the AICS benefit application. It does not change `defaults.json`, the two applicant-default flows, or the explanation corpus. The original form requires more than just a name and email; a short demo should explicitly finish a **partial draft**, not claim filing completeness.
+- Use fictional name/contact/organization and request details only. Leave the signature and associated date blank. Preserve the official notices and conditions; do not sign, submit, or represent the demo as an approved data request.
+- Only PDF intake/extraction was verified. Model mapping, question generation, completed draft output, and a real agency's current acceptance requirements remain unverified.
+
