@@ -18,6 +18,12 @@ Retrieved 2026-10-09 for the original corpus; Pantawid form consulted 2026-10-10
 
 ## Interpretation limits
 
+### Field knowledge bank, checked 2026-10-10
+
+`fields/index.json` selects four form entries: AICS GIS REV 03 (14 MAY 2024), Pantawid Data Request (no printed revision), SSS E-1 COV-01214 (09-2015), and PMRF UHC v.1 (January 2020). Each field record includes its official PDF URL through the parent entry, original source-PDF page, printed or editorial basis, owner/section, uncertainty, and protection status. Examples are authored fictional values.
+
+The AICS source is https://fo4b.dswd.gov.ph/wp-content/uploads/2024/08/RFQ-No.-2024-08-0792-AICS-OCCI-FORMS.pdf, source page 4. Its local one-page extract was rendered and visually checked. The other sources are the exact Pantawid, E-1, and PMRF URLs listed above. Do not infer that these published snapshots are the newest policies. Read the specific entry's version and check date when explaining a field.
+
 - The retrieval date describes when these official sources were consulted; it does not imply agency endorsement or assurance that all rules remain current.
 - The E-1 PDF is an older published form. Its entry instructions are included, but its branch-submission instruction is not presented as the current first-time registration route: the SSS membership page describes mandatory online registration and branch electronic centers. Consult SSS for the appropriate current route and form.
 - The PMRF PDF identifies its version as January 2020. The corpus summarizes its stable form concepts and instructions, not current contribution rates, benefit packages, or a guarantee that this version is appropriate for every transaction.

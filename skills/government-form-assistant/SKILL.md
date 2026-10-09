@@ -19,6 +19,8 @@ The uploaded DSWD Pantawid Pamilyang Pilipino Program Data Request Form is a non
 
 Skill activation is explicit endpoint routing and corpus lookup, not automatic discovery or model memory. “Explain this form” belongs to the service explainer and must use extracted document identity, never a filename; drafting still requires runtime inspection and valid mappings under this skill.
 
+Current-field explanations also belong to the service explainer's sourced `references/fields/index.json` bank. Use reviewed question wording for a confidently matched original form label and owner/section. Unknown fields receive only their original printed label, source context, and identified form title as question-generation context; never invent a form purpose from a generic label. Field help does not count as an answer or advance the conversation. The semantic bank never supplies field geometry or authorizes staff/signature completion.
+
 ## Procedure
 
 1. Confirm the operator is using the localhost API with the applicant present. Do not ask for or accept real values. Explain the synthetic-only draft boundary and ask which of the two agency flows is requested.
