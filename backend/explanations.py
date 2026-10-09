@@ -10,6 +10,39 @@ LABEL = "Demo — not official government advice"
 SKILL = Path(__file__).resolve().parent.parent / "skills" / "government-service-explainer"
 
 
+from typing import Literal
+
+from pydantic import Field
+
+from . import inference
+
+
+class ServiceRecord(inference.StrictModel):
+    source_id: str
+    term: str
+    aliases: list[str]
+    feed: str
+    url: str
+    definition: str
+    document_markers: list[str] | None = None
+
+
+class Explanation(inference.StrictModel):
+    status: Literal["completed", "needs_input", "abstained"]
+    assistant_message: str = Field(min_length=1, max_length=4000)
+    source_ids: list[str] = Field(max_length=20)
+
+
+def search_corpus(query: str) -> list[dict]:
+    """Literal case-insensitive search restricted to the bundled JSON records."""
+    if not isinstance(query, str) or not query.strip() or len(query) > 200:
+        return []
+    needle = query.strip().casefold()
+    entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
+    return [{"source_id": str(index), **entry} for index, entry in enumerate(entries)
+            if needle in json.dumps(entry, ensure_ascii=False).casefold()]
+
+
 def _normalize(value):
     return " ".join(re.findall(r"[a-z0-9]+", value.lower()))
 
