@@ -14,6 +14,7 @@ from . import storage as db
 from . import pdf_service as pdf
 from . import inference
 from .explanations import explain
+from .field_guidance import grounded_question, is_field_help, source_slot, identify_form
 
 # ponytail: sequential demo; per-workspace locks if concurrent throughput matters.
 lock = RLock()
@@ -143,7 +144,7 @@ def get_structure(session, document_id):
 
 
 def skill(name):
-    return (Path(__file__).parent.parent / 'skills' / name / 'SKILL.md').read_text()
+    return (Path(__file__).parent.parent / 'skills' / name / 'SKILL.md').read_text(encoding='utf-8')
 
 
 def mapping_for(session, workspace_id, document_id, request):
@@ -327,7 +328,15 @@ def messages(workspace_id: str, body: MessageInput, session: SessionDep):
             if conflict and (document_id, identity) not in conflict.get('resolutions', {}):
                 continue
             if not values.get(identity) and identity not in answered:
-                question = inference.ask_question(field, skill('government-form-assistant'))
+                question = grounded_question(structure, field)
+                if question is None:
+                    form = identify_form(structure)
+                    original = source_slot(structure, field) or {}
+                    question = inference.ask_question({
+                        'protected': field.get('protected', False),
+                        'form_title': form['title'] if form else 'Unidentified uploaded form',
+                        'source_label': original.get('field_name') or original.get('text', ''),
+                        'source_context': original.get('context', '')}, skill('government-form-assistant'))
                 response = {'assistant_message': question, 'field': identity,
                             'name': field['name'], 'label': field['label']}
                 current['pending'] = {'kind': 'field', 'id': identity, 'response': response}
@@ -389,19 +398,26 @@ def compare(workspace_id: str, session: SessionDep):
 class ExplanationInput(Input):
     query: str = Field(min_length=1, max_length=500)
     document_id: str | None = Field(default=None, min_length=1, max_length=100)
+    field_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 @app.post('/api/v1/workspaces/{workspace_id}/explanations')
 def explanations(workspace_id: str, body: ExplanationInput, session: SessionDep):
     db.resource(session, db.WorkspaceRecord, workspace_id)
     with lock, operation(session, workspace_id, 'explanation') as request:
-        structure = None
-        if body.document_id is not None:
-            document = db.resource(session, db.DocumentRecord, body.document_id)
+        current = state(workspace_id)
+        document_id = body.document_id or (current['active'] if is_field_help(body.query) or body.field_id else None)
+        structure, field = None, None
+        if document_id is not None:
+            document = db.resource(session, db.DocumentRecord, document_id)
             if document.workspace_id != workspace_id:
                 raise ValueError('document_outside_workspace')
-            structure = get_structure(session, body.document_id)
-        result = explain(body.query, structure)
+            structure = get_structure(session, document_id)
+            pending = current['pending'] if current['active'] == document_id else None
+            field_id = body.field_id or (pending['id'] if pending else None)
+            mapping = current['mappings'].get(document_id, {})
+            field = next((f for f in mapping.get('fields', []) if f['id'] == field_id), None)
+        result = explain(body.query, structure, field, field_requested=body.field_id is not None)
         db.transition(session, request, 'completed')
         return {'request_id': request.id, **result}
 

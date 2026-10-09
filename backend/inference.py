@@ -293,6 +293,14 @@ def ask_question(field, skill):
     instruction = (f"Return JSON with question: one concise {LANGUAGE} natural-language question "
                    "about this single field, not several questions. "
                    + LANGUAGE_PROMPT +
+                   "Read the printed label text stored in source_label (or label if absent). "
+                   "Ask the user to provide that named piece of information. Use the label text "
+                   "in the question, never the JSON key name. For example, label text "
+                   "'First name' means ask 'What is your first name?' "
+                   "The form title and source context only disambiguate the label. Never ask for "
+                   "the form's title or purpose instead of that field's value. Never invent a "
+                   "purpose such as a job application from a generic label. When meaning is "
+                   "unclear, ask neutrally for the value of the printed label. "
                    "Include allowed options if applicable. Ask only for synthetic "
                    "applicant-answerable data.")
     with _LOCK:

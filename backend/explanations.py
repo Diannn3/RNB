@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 from typing import Literal
+from .field_guidance import explain_field, is_field_help, matches_field_query
 
 from pydantic import Field
 
@@ -48,13 +49,24 @@ def _reply(message, status, citations=None):
             "status": status, "citations": citations or []}
 
 
-def explain(query: str, structure: dict | None = None) -> dict:
-    """Let the local model search, then simplify only retrieved service evidence."""
+def explain(query: str, structure: dict | None = None, field: dict | None = None,
+            field_requested: bool = False) -> dict:
+    """Route offline field help separately from model-driven service explanations."""
     if not isinstance(query, str) or not query.strip() or len(query) > 300:
         return _reply("Ask a short question about a covered government service.", "abstained")
     form = bool(re.fullmatch(
         r"(?:please )?(?:(?:can|could) you )?explain (?:this|the) form[.?!]*",
         query.strip().lower()))
+    if is_field_help(query):
+        return _reply(*explain_field(structure, field))
+    if not form and (field_requested or (field and matches_field_query(query, structure, field))):
+        wanted = re.sub(r"^(?:please )?(?:(?:can|could) you )?(?:explain|define|what is|what does) ", "", _normalize(query))
+        wanted = re.sub(r" mean$", "", wanted)
+        entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
+        named_service = any(wanted == _normalize(term) for entry in entries
+                            for term in (entry["term"], *entry["aliases"]))
+        if not named_service:
+            return _reply(*explain_field(structure, field))
     if form and structure is None:
         return _reply("Select an uploaded PDF to explain its form.", "needs_input")
     document_text = " " + _normalize(" ".join(

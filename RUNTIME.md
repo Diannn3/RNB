@@ -107,6 +107,16 @@ An unsupported quantum-mechanics query searched, found no records, and abstained
 Final synthesis uses JSON-schema-constrained generation after the tool phase;
 unconstrained LFM prose did not satisfy the citation contract.
 
+Merged current-field guidance remains offline and preserves pending values.
+Post-merge smoke exercised Position field help, named SSS explanation despite
+an explicit Pantawid field selection, and whole-form Pantawid synthesis.
+Review fixes also preserve polite service precedence with an explicit field,
+route polite label/help queries to offline guidance, and omit inferred mapping
+metadata from unknown-field question prompts. Actual LFM smoke asked for the
+printed Reference code rather than the unidentified form's purpose.
+Post-merge verification passed 47 backend tests, three uploaded-form scenarios,
+three frontend tests, and the production frontend build.
+
 Qwen smoke verification: `/health` and `/v1/models` reported the loaded
 `Qwen3.5-4B-Q4_K_M` alias; llama-server reported `n_ctx_slot = 8192`.
 The actual schema-constrained `ask_question` returned

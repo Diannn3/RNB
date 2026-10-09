@@ -22,7 +22,7 @@ All paths below are relative to `/api/v1`.
 | `GET /documents/{document_id}/structure` | — | `200` extracted structure object |
 | `POST /workspaces/{workspace_id}/messages` | JSON message body below | `200` needs-input or completed message object |
 | `POST /workspaces/{workspace_id}/compare` | No body | `200` comparison result |
-| `POST /workspaces/{workspace_id}/explanations` | `{"query":"...","document_id":"optional-selected-document"}` | `200` explanation result |
+| `POST /workspaces/{workspace_id}/explanations` | `{"query":"...","document_id":"optional-selected-document","field_id":"optional-mapped-field"}` | `200` explanation result |
 | `GET /requests/{request_id}` | — | `200` request object |
 | `POST /workspaces/{workspace_id}/drafts` | JSON draft body below | `201` completed draft object |
 | `GET /drafts/{draft_id}/preview` | — | `200` PNG bytes (`image/png`) |
@@ -123,6 +123,8 @@ Explanation response shape is `{"request_id":"...","assistant_message":"...","st
 For `Explain this form` (or `Explain the form`), supply the selected uploaded `document_id`. The backend verifies workspace ownership and requires every normalized corpus `document_marker` for a cited form to occur in runtime-extracted PDF text across its pages; filenames are not evidence. Missing selection returns `needs_input`, unknown forms abstain, and multiple matching forms require clarification. An explicit service query such as `Explain SSS` searches corpus content independently of the selected PDF.
 
 Skill activation is deterministic endpoint dispatch, not automatic skill discovery: messages load `government-form-assistant`, comparisons load `cross-document-checker`, and explanations run the local `government-service-explainer` agent. The model chooses query strings for the allowlisted `lookup_government_service` tool, which performs literal case-insensitive grep-style search across bundled `services.json` record content, then synthesizes the retrieved definitions in English. Completed answers must search first and select only retrieved record IDs; the backend maps those IDs to public citations. The loop allows three tool rounds and one shared retry for invalid tool calls or final output. No embeddings, web browsing, shell, arbitrary path access, or remote inference fallback are used. Unavailable inference returns `inference_unavailable`, not canned success. Editing skill prose alone does not add searchable knowledge; update `services.json` and its provenance notes.
+
+Current-field help remains a separate offline path backed by `references/fields/index.json`. Bare `explain`, `Explain this field`, and `What should I put here?` resolve the selected document's pending mapped field, or an explicit `field_id`. Missing or ambiguous context requests clarification. Help does not save values or advance the pending question. Named service requests and `Explain this form` take precedence over an explicitly selected field and retain model-driven synthesis.
 
 Health response shape:
 
