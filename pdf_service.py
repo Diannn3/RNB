@@ -108,3 +108,110 @@ def _native_page(page, number):
         return text, boxes
     finally:
         textpage.close()
+
+
+def _ocr_page(page, number):
+    scale = 3
+    width, height = page.get_size()
+    if width * height * scale * scale > 40_000_000:
+        raise ValueError("PDF page exceeds raster processing limit")
+    bitmap = page.render(scale=scale)
+    try:
+        image = bitmap.to_pil().copy()
+    finally:
+        bitmap.close()
+    encoded = io.BytesIO()
+    image.save(encoded, format="PNG")
+    try:
+        process = subprocess.run(["tesseract", "stdin", "stdout", "-l", "eng", "--psm", "6", "tsv"],
+                                 input=encoded.getvalue(), capture_output=True, timeout=90, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError("Local Tesseract OCR is unavailable") from exc
+    if process.returncode:
+        raise ValueError("Tesseract OCR failed")
+    boxes, lines = [], {}
+    try:
+        rows = csv.DictReader(io.StringIO(process.stdout.decode("utf-8")), delimiter="\t")
+        for row in rows:
+            value = row["text"].strip()
+            confidence = float(row["conf"])
+            if not value or confidence < 0:
+                continue
+            x, y, w, h = (int(row[key]) for key in ("left", "top", "width", "height"))
+            boxes.append({"id": f"p{number}-o{len(boxes)}", "text": value,
+                          "rect": [x / scale, height - (y + h) / scale, (x + w) / scale, height - y / scale],
+                          "confidence": confidence, "source": "ocr"})
+            key = tuple(row[key] for key in ("block_num", "par_num", "line_num"))
+            lines.setdefault(key, []).append(value)
+    except (KeyError, UnicodeError, ValueError) as exc:
+        raise ValueError("Invalid OCR result") from exc
+    segments = _raster_lines(image, height, scale)
+    image.close()
+    return "\n".join(" ".join(words) for words in lines.values()), boxes, segments
+
+
+def _raster_lines(image, height, scale):
+    gray = image.convert("L").point(lambda pixel: 0 if pixel < 100 else 255)
+    segments = []
+    try:
+        for axis in (0, 1):
+            size = gray.width if axis == 0 else gray.height
+            limit = gray.height if axis == 0 else gray.width
+            for index in range(limit):
+                crop = gray.crop((0, index, size, index + 1) if axis == 0 else (index, 0, index + 1, size))
+                data = crop.tobytes()
+                crop.close()
+                for run in re.finditer(b"\x00{" + str(int(5 * scale)).encode() + b",}", data):
+                    start, end = run.span()
+                    if axis == 0:
+                        segments.append((start / scale, height - index / scale, end / scale, height - index / scale))
+                    else:
+                        segments.append((index / scale, height - end / scale, index / scale, height - start / scale))
+                    if len(segments) > 50000:
+                        raise ValueError("Raster layout exceeds processing limit")
+    finally:
+        gray.close()
+    return segments
+
+
+def _vector_lines(page):
+    segments, current, origin = [], None, None
+
+    def visit(operator, operands, matrix, text_matrix):
+        nonlocal current, origin
+
+        def point(x, y):
+            a, b, c, d, e, f = (float(value) for value in matrix)
+            return a * float(x) + c * float(y) + e, b * float(x) + d * float(y) + f
+
+        if operator == b"m":
+            current = origin = point(*operands)
+        elif operator == b"l" and current is not None:
+            end = point(*operands)
+            segments.append((*current, *end))
+            current = end
+        elif operator == b"h" and current is not None and origin is not None:
+            segments.append((*current, *origin))
+            current = origin
+        elif operator == b"re":
+            x, y, w, h = (float(value) for value in operands)
+            corners = [point(x, y), point(x + w, y), point(x + w, y + h), point(x, y + h)]
+            segments.extend((*corners[index], *corners[(index + 1) % 4]) for index in range(4))
+        if len(segments) > 50000:
+            raise ValueError("PDF layout exceeds processing limit")
+
+    page.extract_text(visitor_operand_before=visit)
+    return segments
+
+
+def _intersects(first, second, tolerance=0.1):
+    return (min(first[2], second[2]) - max(first[0], second[0]) > tolerance
+            and min(first[3], second[3]) - max(first[1], second[1]) > tolerance)
+
+
+def _valid_rect(rect, page):
+    if not isinstance(rect, list) or len(rect) != 4 or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in rect):
+        raise ValueError("Invalid mapping geometry")
+    x0, y0, x1, y1 = rect
+    if not (0 <= x0 < x1 <= page["width"] and 0 <= y0 < y1 <= page["height"]):
+        raise ValueError("Mapping geometry exceeds page bounds")
