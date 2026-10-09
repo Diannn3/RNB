@@ -22,12 +22,15 @@ export async function parseDocument(
   file: File,
   role: DocumentRef["role"],
   id: string = crypto.randomUUID(),
+  signal?: AbortSignal,
 ): Promise<{ doc: DocumentRef; fields: SemanticField[] }> {
   if (file.size > 20 * 1024 * 1024)
     throw new Error(
       "This file exceeds the 20 MB session limit. Choose a smaller PDF.",
     );
+  signal?.throwIfAborted();
   const bytes = new Uint8Array(await file.arrayBuffer());
+  signal?.throwIfAborted();
   if (!new TextDecoder().decode(bytes.slice(0, 1024)).includes("%PDF-"))
     throw new Error(
       "Choose a PDF document. This file does not contain a PDF header.",
@@ -90,13 +93,19 @@ export async function parseDocument(
     "pdfjs-dist/build/pdf.worker.min.mjs",
     import.meta.url,
   ).toString();
+  signal?.throwIfAborted();
   const task = pdfjs.getDocument({ data: bytes.slice() });
+  const abort = () => {
+    void task.destroy();
+  };
+  signal?.addEventListener("abort", abort, { once: true });
   let hasText = false;
   try {
     const loaded = await task.promise;
     if (loaded.numPages > 100)
       throw new Error("This session supports PDFs of up to 100 pages.");
     for (let p = 1; p <= loaded.numPages; p++) {
+      signal?.throwIfAborted();
       const page = await loaded.getPage(p);
       const text = await page.getTextContent();
       if (text.items.some((x) => "str" in x && x.str.trim())) {
@@ -104,9 +113,14 @@ export async function parseDocument(
         break;
       }
     }
+  } catch (error) {
+    signal?.throwIfAborted();
+    throw error;
   } finally {
+    signal?.removeEventListener("abort", abort);
     await task.destroy();
   }
+  signal?.throwIfAborted();
   return {
     doc: {
       id,
@@ -128,6 +142,14 @@ export async function parseDocument(
     fields: role === "target" ? fields : [],
   };
 }
+const downloadUrls = new Map<string, ReturnType<typeof setTimeout>>();
+export function disposeDownloadUrls() {
+  for (const [url, timer] of downloadUrls) {
+    clearTimeout(timer);
+    URL.revokeObjectURL(url);
+  }
+  downloadUrls.clear();
+}
 export function download(
   bytes: Uint8Array | string,
   name: string,
@@ -142,7 +164,13 @@ export function download(
   a.href = url;
   a.download = name;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadUrls.set(
+    url,
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      downloadUrls.delete(url);
+    }, 1000),
+  );
 }
 let exportFont: Promise<ArrayBuffer> | undefined;
 const fontUrl = "/fonts/PlusJakartaSans-Regular.ttf";
@@ -162,13 +190,18 @@ export async function exportDraft(
     throw new Error("XFA forms cannot be rewritten safely.");
   const { default: fontkit } = await import("@pdf-lib/fontkit");
   pdf.registerFontkit(fontkit);
-  exportFont ??= fetch(fontUrl).then((r) => {
-    if (!r.ok)
-      throw new Error(
-        "The local export font could not be loaded. Reload and try again.",
-      );
-    return r.arrayBuffer();
-  });
+  exportFont ??= fetch(fontUrl)
+    .then((r) => {
+      if (!r.ok)
+        throw new Error(
+          "The local export font could not be loaded. Reload and try again.",
+        );
+      return r.arrayBuffer();
+    })
+    .catch((error) => {
+      exportFont = undefined;
+      throw error;
+    });
   const font = await pdf.embedFont(await exportFont, { subset: true });
   const approved = fields.filter(isApproved);
   const unreviewed = fields.filter((f) => !isApproved(f));

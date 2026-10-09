@@ -32,7 +32,13 @@ import {
   type SemanticField,
   type SourceSpan,
 } from "./domain";
-import { download, exportDraft, parseDocument, sampleDocuments } from "./pdf";
+import {
+  download,
+  disposeDownloadUrls,
+  exportDraft,
+  parseDocument,
+  sampleDocuments,
+} from "./pdf";
 import { sampleAdapter } from "./sample";
 const PdfViewer = lazy(() => import("./PdfViewer"));
 type Tab = "Document" | "Review" | "Questions";
@@ -96,9 +102,39 @@ export default function Workspace() {
       alive.current = false;
       sampleStarted.current = false;
       controller.current?.abort();
+      sourceJob.current++;
+      disposeDownloadUrls();
       job.current++;
     };
   }, []);
+  useEffect(() => {
+    // A different target is a hard boundary for all document-derived local state.
+    sourceJob.current++;
+    disposeDownloadUrls();
+    setExportBytes(undefined);
+    setExportEpoch(0);
+    setExportPage(1);
+    setProject(undefined);
+    setConfirmAction(() => () => {});
+    setSourceDoc("");
+    setSourceQuote("");
+    setSourceError("");
+    setFieldLabel("");
+    setShowFiles(false);
+    setQueueOpen(false);
+    setQuestionView(false);
+    setTab("Review");
+    setDialog("none");
+  }, [target?.id]);
+  useEffect(() => {
+    if (sourceDoc && !documents.some((d) => d.id === sourceDoc)) {
+      sourceJob.current++;
+      setSourceDoc("");
+      setSourceQuote("");
+      setSourceError("");
+      if (dialog === "source") setDialog("none");
+    }
+  }, [documents, sourceDoc, dialog]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (useSession.getState().dirty) {
@@ -142,6 +178,8 @@ export default function Workspace() {
     return () => scope.revert();
   }, [selected, field?.state]);
   async function startSample() {
+    controller.current?.abort();
+    session.clear();
     const ticket = ++job.current;
     setBusy("Preparing the sample");
     setError("");
@@ -156,7 +194,9 @@ export default function Workspace() {
         c.signal,
       );
       if (ticket !== job.current || !alive.current) return;
-      useSession.getState().applyAnalysis(result.fields);
+      useSession
+        .getState()
+        .applyAnalysis(result.fields, result.analysisRevision);
       setNotice(
         "Fictional sample ready. Start with the suggested name or the address question.",
       );
@@ -175,6 +215,9 @@ export default function Workspace() {
   }
   async function upload(files: File[], role: "target" | "support") {
     if (!files.length) return;
+    controller.current?.abort();
+    const c = new AbortController();
+    controller.current = c;
     const ticket = ++job.current;
     const epoch = useSession.getState().epoch;
     setBusy("Opening your PDF");
@@ -185,7 +228,7 @@ export default function Workspace() {
           "This session holds up to 20 documents. Remove a record before adding another.",
         );
       const parsed = await Promise.all(
-        files.map((f) => parseDocument(f, role)),
+        files.map((f) => parseDocument(f, role, undefined, c.signal)),
       );
       if (
         ticket !== job.current ||
@@ -204,7 +247,8 @@ export default function Workspace() {
           : "Supporting records added.",
       );
     } catch (e) {
-      if (alive.current) setError(message(e));
+      if (alive.current && ticket === job.current && !c.signal.aborted)
+        setError(message(e));
     } finally {
       if (ticket === job.current && alive.current) setBusy("");
     }
@@ -328,14 +372,17 @@ export default function Workspace() {
     setNotice("Project downloaded. Keep the original PDFs to resume later.");
   }
   async function loadProject(file: File) {
+    const ticket = ++job.current;
     try {
       if (file.size > 2 * 1024 * 1024)
         throw new Error("Project file exceeds 2 MB.");
       const p = projectSchema.parse(JSON.parse(await file.text()));
+      if (ticket !== job.current || !alive.current) return;
       setProject(p);
       setDialog("restore");
       setError("");
     } catch {
+      if (ticket !== job.current || !alive.current) return;
       setError(
         "This project file is invalid or uses an unsupported version. Choose a PapelLess project JSON.",
       );
@@ -347,12 +394,20 @@ export default function Workspace() {
     setError("");
     const ticket = ++job.current;
     const epoch = useSession.getState().epoch;
+    controller.current?.abort();
+    const c = new AbortController();
+    controller.current = c;
     try {
       if (files.length > 20) throw new Error("Choose up to 20 documents.");
       const assigned = new Set<string>();
       const parsed = [];
       for (const file of files) {
-        const preliminary = await parseDocument(file, "support");
+        const preliminary = await parseDocument(
+          file,
+          "support",
+          undefined,
+          c.signal,
+        );
         const old =
           project.documents.find(
             (d) => d.hash === preliminary.doc.hash && !assigned.has(d.id),
@@ -363,7 +418,7 @@ export default function Workspace() {
         if (old) assigned.add(old.id);
         const final =
           old?.role === "target"
-            ? await parseDocument(file, "target", old.id)
+            ? await parseDocument(file, "target", old.id, c.signal)
             : {
                 doc: { ...preliminary.doc, id: old?.id ?? preliminary.doc.id },
                 fields: [],
@@ -401,7 +456,8 @@ export default function Workspace() {
           : "Project restored with changes. Affected answers need review; unmatched source links were removed.",
       );
     } catch (e) {
-      setError(message(e));
+      if (ticket === job.current && alive.current && !c.signal.aborted)
+        setError(message(e));
     } finally {
       if (ticket === job.current) setBusy("");
     }
@@ -1188,6 +1244,8 @@ export default function Workspace() {
         onOpenChange={(open) => {
           if (!open) {
             job.current++;
+            controller.current?.abort();
+            setProject(undefined);
             setBusy("");
             setDialog("none");
           }

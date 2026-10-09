@@ -86,6 +86,9 @@ export const useSession = create<Session>((set) => ({
           selected: null,
           activeDoc: null,
           source: undefined,
+          page: 1,
+          mode: "manual",
+          analysisRevision: undefined,
           dirty: false,
           epoch: s.epoch + 1,
         };
