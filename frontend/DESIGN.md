@@ -193,3 +193,6 @@ Live workspace typography retains the incumbent scale: 12â€“13px metadata, 14px 
 
 The centered entry screen reserves a 112px mascot slot above its heading for the missing `pely.webp` asset; no substitute illustration or broken image is rendered. Reopening uses a persisted filename dropdown, not opaque-ID text entry. After upload, the workspace metadata and upload/service toolbar are hidden behind the header's Workspace tools control. Pending responses show a semantic status with a rotating spinner; reduced motion keeps it static.
 
+
+## Typography update — 2026-10-10
+Self-hosted Manrope Variable for headings and Atkinson Hyperlegible Next Variable for body text, labels and controls. Supplied logo images and source document typography remain intact.

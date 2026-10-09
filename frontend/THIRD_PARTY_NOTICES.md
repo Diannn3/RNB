@@ -6,7 +6,8 @@ Direct dependency inventory updated for the live API cutover, October 10, 2026. 
 | -------------------------------------- | ----------------- | ---------------------------------------------------------------- |
 | @axe-core/playwright                   | 4.13.0            | MPL-2.0                                                          |
 | @base-ui/react                         | 1.9.0             | MIT                                                              |
-| @fontsource-variable/plus-jakarta-sans | 5.3.0             | OFL-1.1                                                          |
+| @fontsource-variable/manrope | 5.3.0 | OFL-1.1 |
+| @fontsource-variable/atkinson-hyperlegible-next | 5.3.0 | OFL-1.1 |
 | @gsap/react                            | 2.1.2             | SEE LICENSE AT https://gsap.com/standard-license                 |
 | @playwright/test                       | 1.64.0            | Apache-2.0                                                       |
 | @tailwindcss/vite                      | 4.3.3             | MIT                                                              |
@@ -30,7 +31,7 @@ Direct dependency inventory updated for the live API cutover, October 10, 2026. 
 
 The four logo originals were supplied and selected by the user. Product use does not grant general redistribution rights. Three display assets are copied unchanged into public/brand; the unused white mark is also preserved there.
 
-Plus Jakarta Sans: locally served interface WOFF2 via Fontsource and variable TTF for PDF embedding, SIL OFL 1.1. License at public/fonts/OFL.txt. The filename Regular.ttf is a local asset name; its bytes are the upstream variable font.
+Manrope and Atkinson Hyperlegible Next: locally bundled variable WOFF2 via Fontsource, SIL OFL 1.1; licenses included in their npm packages. Historical Plus Jakarta Sans TTF assets retain the license at public/fonts/OFL.txt.
 
 PDF.js CMaps, standard fonts and WASM are copied from the installed renderer dependency. Their upstream license files remain beside the assets. PDF worker is built from that same dependency version.
 

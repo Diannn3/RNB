@@ -1,7 +1,8 @@
 import React, { Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Link } from "react-router";
-import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/atkinson-hyperlegible-next";
 import "./styles.css";
 const Landing = lazy(() => import("./Landing"));
 const Workspace = lazy(() => import("./Workspace"));
