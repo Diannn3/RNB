@@ -49,7 +49,7 @@ def check_conversation():
         '--parallel', '1', '--threads', '4', '--threads-batch', '4',
         '--batch-size', '256', '--ubatch-size', '128', '--cache-ram', '0',
         '--jinja', '--reasoning-budget', str(REASONING_BUDGET),
-        '--reasoning', 'on', '--no-webui', '--no-slots',
+        '--reasoning', 'on' if REASONING_BUDGET else 'off', '--no-webui', '--no-slots',
         '--offline', '--log-disable', '--metrics'], cwd=root)
     api = None
     try:

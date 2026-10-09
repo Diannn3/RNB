@@ -23,7 +23,7 @@ LANGUAGE_PROMPT = (
     "Example: 'Ano ang first name ng member para sa synthetic form?' "
 )
 CONTEXT = 8192
-REASONING_BUDGET = 256
+REASONING_BUDGET = 0 if PROFILE == "qwen" else 256
 _LOCK = threading.RLock()
 SYSTEM = (
     "You are Papelless, a local synthetic Philippine government-form assistant "
@@ -97,7 +97,7 @@ def _data(value):
 
 def _tokens(messages, tools=None):
     payload = {"messages": messages, "add_generation_prompt": True,
-               "chat_template_kwargs": {"enable_thinking": True}}
+               "chat_template_kwargs": {"enable_thinking": REASONING_BUDGET > 0}}
     if tools:
         payload["tools"] = tools
     prompt = _request("/apply-template", payload).get("prompt")
@@ -117,7 +117,7 @@ def _complete(messages, reserve=2048, tools=None, schema=None):
                "max_tokens": reserve + REASONING_BUDGET,
                "temperature": 0, "stream": False, "cache_prompt": False,
                "reasoning_budget_tokens": REASONING_BUDGET,
-               "chat_template_kwargs": {"enable_thinking": True}}
+               "chat_template_kwargs": {"enable_thinking": REASONING_BUDGET > 0}}
     if tools:
         payload.update(tools=tools, parallel_tool_calls=False)
     if schema:

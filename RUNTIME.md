@@ -44,7 +44,8 @@ PAPELLESS_MODEL_PROFILE=qwen .venv/bin/python -m scripts.check_conversation
 
 For a manually launched server, the command below is the Qwen version.
 For Liquid, replace the model path and alias with `LFM2.5-2.6B-Q4_K_M`
-and use `--gpu-layers 99`. Both keep `--ctx-size 8192`. Use separate
+and use `--reasoning on --reasoning-budget 256`. Both use `--gpu-layers 99`
+and `--ctx-size 8192`. Use separate
 ports if running both, and point each backend's `PAPELLESS_LLAMA_URL`
 at its matching server. Do not expect both fully offloaded models to fit
 simultaneously on the 4 GB GPU.
@@ -57,7 +58,7 @@ export LD_LIBRARY_PATH="$PWD/.runtime/llama-cuda/cudart-llama-b11429-bin-ubuntu-
   --device CUDA0 --gpu-layers 99 \
   --ctx-size 8192 --parallel 1 --threads 4 --threads-batch 4 \
   --batch-size 256 --ubatch-size 128 --cache-ram 0 \
-  --jinja --reasoning on --reasoning-budget 256 \
+  --jinja --reasoning off --reasoning-budget 0 \
   --no-webui --no-slots --offline --log-disable
 ```
 
@@ -71,11 +72,12 @@ server's `--gpu-layers` manually when other GPU workloads must remain active.
 There is one 8,192-token slot. Inference reserves output and counts the actual
 rendered chat template using `/apply-template` and `/tokenize`, including tool
 schemas. Mapping/fact extraction splits source-linked excerpts without skipping
-pages. Both profiles allow 256 reasoning tokens per completion, in addition to
-the answer reserves: 3,072 tokens for mapping and facts, 256 for a question,
-and 1,024 for each tool round. Template counting enables thinking too; all
-reasoning and answer tokens count toward the 8,192-token limit. Temperature
-is zero. Connections time out after 240 seconds; no remote fallback or proxy use.
+pages. Liquid allows 256 reasoning tokens per completion; Qwen reasoning is
+disabled (`--reasoning off`, budget 0, `enable_thinking: false` in both template
+counting and generation). Answer reserves remain 3,072 tokens for mapping and
+facts, 256 for a question, and 1,024 for each tool round. All reasoning and answer
+tokens count toward the 8,192-token limit. Temperature is zero. Connections time
+out after 240 seconds; no remote fallback or proxy use.
 
 Conversation and generated field questions use English for `lfm` and natural
 Taglish for `qwen`. Official names, source quotes, user values, JSON keys and
@@ -95,13 +97,20 @@ reported `Qwen3.5-4B-Q4_K_M` and generated
 Both reported 8,192 context tokens. The 18 inference boundary tests passed
 under each profile. These checks do not establish full PDF workflow acceptance.
 
-Light-reasoning verification: the Qwen response exposed a nonempty
+Historical light-reasoning verification: Qwen exposed a nonempty
 `reasoning_content` and correctly answered 17 times 23 as 391 in Taglish.
-Both profiles send the supported `reasoning_budget_tokens: 256` API field.
-LFM2.5-2.6B is not a dedicated thinking model; allowing a reasoning budget does
-not guarantee that it emits a separate reasoning trace. The existing external
-LFM server was not reconfigured; new conversation-check launches use the light
-budget. All old llama servers were subsequently stopped for the Qwen full-offload retry.
+Qwen reasoning was subsequently disabled at the operator's request; Liquid
+retains the supported `reasoning_budget_tokens: 256` API allowance.
+LFM2.5-2.6B is not a dedicated thinking model; a budget does not guarantee a
+separate reasoning trace. Both sequential government-flow tests failed on the
+first DSWD mapping request with HTTP 503 before conversational turns or exports.
+Liquid: 31.80s first API turn, 56.28 generated tokens/s. Qwen with reasoning:
+54.38s first API turn, 31.14 generated tokens/s. Those tests stopped their servers.
+
+Nonreasoning Qwen smoke passed with full GPU offload and 8K context:
+reasoning budget 0, empty reasoning trace, `Ang total ay 391 (17 x 23).`,
+and `Ano ang first name ng member para sa synthetic form?`.
+All 18 inference boundary tests passed under each profile.
 
 ## Start the API with rootless OCR
 
