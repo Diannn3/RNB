@@ -17,6 +17,73 @@ from tests.test_pdf_service import field_for
 
 
 class ApiBehavior(unittest.TestCase):
+    def test_duplicate_names_have_independent_answers_edits_and_conflicts(self):
+        stream = io.BytesIO()
+        canvas = Canvas(stream)
+        for index in range(2):
+            canvas.drawString(50, 735 - index * 80, 'First name')
+            canvas.acroForm.textfield(name=f'person_{index}', x=50, y=700 - index * 80,
+                                      width=200, height=20)
+        canvas.save()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            engine = create_engine(f'sqlite:///{root / "metadata.db"}',
+                                   connect_args={'check_same_thread': False})
+            with patch.object(db, 'ROOT', root), patch.object(db, 'engine', engine), patch.object(
+                    inference, 'ask_question', return_value='What is the first name?'):
+                with TestClient(app) as client:
+                    workspace = client.post('/api/v1/workspaces').json()['id']
+                    prefix = f'/api/v1/workspaces/{workspace}'
+                    docs = []
+                    for _ in range(2):
+                        document = client.post(prefix + '/documents', files={
+                            'file': ('synthetic.pdf', stream.getvalue(), 'application/pdf')
+                        }).json()['document']['id']
+                        docs.append(document)
+                        structure = state(workspace)['structures'][document]
+                        fields = [{**field_for(w, True), 'name': 'first_name'}
+                                  for w in structure['widgets']]
+                        state(workspace)['mappings'][document] = pdf.validate_mapping(
+                            structure, [{'rank': 1, 'fields': fields}])
+                    ids = [f['id'] for f in fields]
+                    first = client.post(prefix + '/messages', json={'document_id': docs[0]}).json()
+                    self.assertEqual(first['field'], ids[0])
+                    second = client.post(prefix + '/messages', json={'answer': 'ADA'}).json()
+                    self.assertEqual(second['field'], ids[1])
+                    partial = client.post(prefix + '/messages', json={'skip': True}).json()
+                    self.assertEqual(partial['missing_fields'], [ids[1]])
+                    def exported(result):
+                        return PdfReader(io.BytesIO(client.post(result['export_url']).content)).get_fields()
+                    values = exported(partial)
+                    self.assertEqual(values['person_0']['/V'], 'ADA')
+                    self.assertFalse(values['person_1'].get('/V'))
+                    edited = client.post(prefix + '/drafts', json={
+                        'document_id': docs[0], 'values': {ids[1]: 'BEA'}}).json()
+                    values = exported(edited)
+                    self.assertEqual(values['person_0']['/V'], 'ADA')
+                    self.assertEqual(values['person_1']['/V'], 'BEA')
+                    rejected = client.post(prefix + '/drafts', json={
+                        'document_id': docs[0], 'values': {'first_name': 'AMBIGUOUS'}})
+                    self.assertEqual(rejected.status_code, 422)
+                    state(workspace)['conflicts']['first_name'] = {
+                        'name': 'first_name', 'sources': [], 'asked_slots': set(), 'resolutions': {}}
+                    conflict = client.post(prefix + '/messages', json={'document_id': docs[0]}).json()
+                    self.assertEqual(conflict['field'], ids[0])
+                    other_slot = client.post(prefix + '/messages', json={'answer': 'CAROL'}).json()
+                    self.assertEqual(other_slot['field'], ids[1])
+                    self.assertIn('conflict', other_slot)
+                    blank = client.post(prefix + '/messages', json={'finalize': True}).json()
+                    values = exported(blank)
+                    self.assertEqual(values['person_0']['/V'], 'CAROL')
+                    self.assertFalse(values['person_1'].get('/V'))
+                    direct = client.post(prefix + '/drafts', json={
+                        'document_id': docs[0], 'values': {ids[1]: 'UNRESOLVED'}}).json()
+                    self.assertFalse(exported(direct)['person_1'].get('/V'))
+                    other_doc = client.post(prefix + '/messages', json={'document_id': docs[1]}).json()
+                    self.assertEqual(other_doc['field'], ids[0])
+                    self.assertIn('conflict', other_doc)
+            engine.dispose()
+
     def test_persistent_artifacts_and_unresolved_conflict_export(self):
         stream = io.BytesIO()
         canvas = Canvas(stream)
@@ -63,16 +130,16 @@ class ApiBehavior(unittest.TestCase):
                               for widget in structure['widgets']]
                     current = state(workspace)
                     current['mappings'][document] = pdf.validate_mapping(structure, [{'rank': 1, 'fields': fields}])
-                    current['values'][document] = {'birth_date': '2000-01-02'}
+                    ids = {f['name']: f['id'] for f in fields}
+                    current['values'][document] = {ids['birth_date']: '2000-01-02'}
                     current['conflicts']['patient_name'] = {'name': 'patient_name',
-                        'sources': evidence,
-                        'asked': False, 'resolved': False}
+                        'sources': evidence, 'asked_slots': set(), 'resolutions': {}}
                     turn = client.post(prefix + '/messages', json={'document_id': document}).json()
                     self.assertEqual(turn['status'], 'needs_input')
-                    self.assertEqual(turn['field'], 'patient_name')
+                    self.assertEqual(turn['field'], ids['patient_name'])
                     result = client.post(prefix + '/messages', json={'finalize': True}).json()
                     self.assertEqual(result['status'], 'completed')
-                    self.assertIn('patient_name', result['missing_fields'])
+                    self.assertIn(ids['patient_name'], result['missing_fields'])
                     exported = client.post(result['export_url'])
                     self.assertEqual(exported.status_code, 200)
                     values = PdfReader(io.BytesIO(exported.content)).get_fields()
@@ -85,7 +152,7 @@ class ApiBehavior(unittest.TestCase):
                     self.assertEqual(again['status'], 'completed')
                     self.assertNotIn('conflict', again)
                     invalid = client.post(prefix + '/drafts', json={'document_id': document,
-                        'values': {'provider_signature': 'Forbidden'}})
+                        'values': {ids['provider_signature']: 'Forbidden'}})
                     self.assertEqual(invalid.status_code, 422)
                     request_id = invalid.json()['detail']['request_id']
                     self.assertEqual(client.get(f'/api/v1/requests/{request_id}').json()['status'], 'failed')
