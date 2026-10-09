@@ -35,6 +35,17 @@ server: `PAPELLESS_MODEL_PROFILE=lfm` (default, English) or `qwen` (Taglish).
 The conversation check launches the matching model and passes the profile to
 its API subprocess; its workflow assertions are shared, not copied.
 
+Start the API with a model flag after starting the matching local inference server:
+
+```sh
+.venv/bin/python -m backend --model qwen
+# Or: .venv/bin/python -m backend --model lfm
+```
+
+The API binds to `127.0.0.1:8000`. `--model` overrides `PAPELLESS_MODEL_PROFILE`; without the flag it uses that variable or defaults to `lfm`. The inference URL remains `PAPELLESS_LLAMA_URL` (default `http://127.0.0.1:8081`). This flag starts the API, not a second model server. Stop the API before changing profiles; a restart clears conversation memory but preserves SQLite resources and artifact files.
+
+The Qwen CLI was exercised against the actual CUDA server: the frontend's `/api/v1/health` proxy returned HTTP 200, API/database `ok`, reachable `Qwen3.5-4B-Q4_K_M`, and 8,192 context tokens. No tests or generation calls were run for this switch.
+
 ```sh
 # Original Liquid version
 PAPELLESS_MODEL_PROFILE=lfm .venv/bin/python -m scripts.check_conversation

@@ -4,9 +4,9 @@ A cinematic introduction and a live local-API document workspace. React, Vite, T
 
 ## Run locally
 
-Use synthetic documents only: this localhost demo has no authentication. Install locked dependencies with `npm ci` in `frontend/`. Start the backend separately using the root [runtime instructions](../RUNTIME.md), then run `npm run dev`. The Vite same-origin `/api` proxy targets `127.0.0.1:8000`; CORS is not required. A static production host must supply the equivalent proxy. `npm run build` produces the frontend bundle, not the API or inference server.
+Use synthetic documents only: this localhost demo has no authentication. Install locked dependencies with `npm ci` in `frontend/`. Start the matching local model using the root [runtime instructions](../RUNTIME.md), then start the API from the repository root with `.venv/bin/python -m backend --model qwen` (or `--model lfm`). Run `npm run dev` in `frontend/`. The Vite same-origin `/api` proxy targets `127.0.0.1:8000`; CORS is not required. A static production host must supply the equivalent proxy. `npm run build` produces the frontend bundle, not the API or inference server.
 
-This integration assignment authorizes build only: no tests, backend startup or model calls were run. Existing `npm test` and `npm run test:e2e` commands are available for separately authorized regression work; surviving checks cover PDF geometry and landing presentation, not a certified live end-to-end journey.
+No tests were run for the integration. Subsequent authorized startup verified the running frontend proxy, API/database health, and matching local model identity for LFM and Qwen without generation calls. Existing `npm test` and `npm run test:e2e` commands require separate authorization; surviving frontend checks cover PDF geometry and landing presentation, not a certified live end-to-end journey.
 
 ## Live workflow
 
