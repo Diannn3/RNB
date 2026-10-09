@@ -32,7 +32,7 @@ def start(directory):
     raise RuntimeError('API startup timed out')
 
 
-def synthetic_form():
+def synthetic_form(patient_name='', birth_date=''):
     output = io.BytesIO()
     c = canvas.Canvas(output)
     c.drawString(50, 780, 'SYNTHETIC patient intake — demo only')
@@ -41,7 +41,8 @@ def synthetic_form():
                            ('provider_signature', 'Provider signature — leave untouched', 540)]:
         c.drawString(50, y + 25, label)
         c.acroForm.textfield(name=name, tooltip=label, x=50, y=y, width=280, height=22,
-                             fieldFlags='required' if name != 'provider_signature' else '')
+                             fieldFlags='required' if name != 'provider_signature' else '',
+                             value={'patient_name': patient_name, 'birth_date': birth_date}.get(name, ''))
     c.save()
     return output.getvalue()
 
@@ -84,6 +85,42 @@ def test_backend():
             assert invalid.status_code == 422
             oversized = client.post(BASE + prefix + '/documents', files={'file': ('large.pdf', b'%PDF-' + b'x' * (10 * 1024 * 1024))})
             assert oversized.status_code == 413
+            complete_workspace = post('/workspaces')['id']
+            complete_prefix = f'/workspaces/{complete_workspace}'
+            complete_doc = post(complete_prefix + '/documents',
+                files={'file': ('form.pdf', content)})['document']['id']
+            turn = post(complete_prefix + '/messages', json={'document_id': complete_doc})
+            supplied = []
+            for _ in range(10):
+                if turn['status'] == 'completed':
+                    break
+                assert turn['status'] == 'needs_input' and turn['assistant_message'].count('?') == 1
+                value = '2000-01-02' if 'birth' in turn['field'] or 'date' in turn['field'] else 'Synthetic Ada'
+                supplied.append(value)
+                turn = post(complete_prefix + '/messages', json={'answer': value})
+            assert turn['status'] == 'completed' and not turn['missing_fields']
+            filled = PdfReader(io.BytesIO(client.post(BASE + turn['export_url']).content)).get_fields()
+            assert {str(f.get('/V')) for f in filled.values() if f.get('/V')} == set(supplied)
+            assert not filled['provider_signature'].get('/V')
+            conflict_workspace = post('/workspaces')['id']
+            conflict_prefix = f'/workspaces/{conflict_workspace}'
+            conflict_docs = []
+            for name in ('Synthetic Ada', 'Synthetic Bea'):
+                upload_result = post(conflict_prefix + '/documents',
+                    files={'file': ('source.pdf', synthetic_form(name, '2000-01-02'))})
+                conflict_docs.append(upload_result['document']['id'])
+            comparison = post(conflict_prefix + '/compare')
+            conflicts = [c for c in comparison['comparisons'] if c['outcome'] == 'conflict']
+            assert any({s['value'] for s in c['sources']} == {'Synthetic Ada', 'Synthetic Bea'} for c in conflicts)
+            question = post(conflict_prefix + '/messages', json={'document_id': conflict_docs[0]})
+            assert question['status'] == 'needs_input' and question.get('conflict')
+            result = post(conflict_prefix + '/messages', json={'skip': True})
+            if result['status'] == 'needs_input':
+                result = post(conflict_prefix + '/messages', json={'answer': '2000-01-02'})
+            assert result['status'] == 'completed'
+            conflict_pdf = PdfReader(io.BytesIO(client.post(BASE + result['export_url']).content)).get_fields()
+            assert not conflict_pdf['patient_name'].get('/V')
+            assert conflict_pdf['birth_date'].get('/V') == '2000-01-02'
             process.terminate()
             process.wait(timeout=10)
             process = start(directory)
@@ -91,7 +128,7 @@ def test_backend():
             assert client.get(BASE + partial['preview_url']).status_code == 200
             assert client.post(BASE + partial['export_url']).content == response.content
             assert client.get(BASE + f'/requests/{partial["request_id"]}').json()['status'] == 'completed'
-            print('Actual local model: one-question turn, partial blank export, protection, errors, citations, restart persistence verified.')
+            print('Actual local model: complete/partial turns, conflict blanks, protection, errors, citations, restart persistence verified.')
         finally:
             process.terminate()
             process.wait(timeout=10)
