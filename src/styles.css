@@ -1858,3 +1858,21 @@ textarea {
     margin-top: 0;
   }
 }
+
+.manual-required {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+.manual-required input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ink);
+}
+.unsaved-answer {
+  font-size: 12px;
+  color: #705414;
+  margin-top: 12px;
+}

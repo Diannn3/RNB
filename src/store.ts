@@ -25,6 +25,7 @@ interface Session {
   ) => void;
   update: (id: string, value: string, source?: SourceSpan) => void;
   approve: (id: string) => void;
+  markRequired: (id: string, required: boolean) => void;
   select: (id: string) => void;
   showSource: (s: SourceSpan) => void;
   showDoc: (id: string) => void;
@@ -61,6 +62,14 @@ export const useSession = create<Session>((set) => ({
     set((s) => ({
       fields: s.fields.map((f) =>
         f.id === id ? changeField(f, value, source) : f,
+      ),
+      dirty: true,
+      epoch: s.epoch + 1,
+    })),
+  markRequired: (id, required) =>
+    set((s) => ({
+      fields: s.fields.map((f) =>
+        f.id === id ? { ...changeField(f, f.value, f.source), required } : f,
       ),
       dirty: true,
       epoch: s.epoch + 1,

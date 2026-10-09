@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useDropzone } from "react-dropzone";
@@ -50,6 +57,19 @@ export default function Workspace() {
   const navigate = useNavigate();
   const isSample = route.pathname.endsWith("/sample");
   const [tab, setTab] = useState<Tab>("Review");
+  const [narrow, setNarrow] = useState(
+    () => matchMedia("(max-width: 850px)").matches,
+  );
+  const pendingFocus = useRef<"Document" | "Review" | null>(null);
+  const viewTabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [unsaved, setUnsaved] = useState(false);
+  const draftChanged = useCallback((dirty: boolean) => {
+    setUnsaved(dirty);
+    const state = useSession.getState();
+    const current = state.fields.find((f) => f.id === state.selected);
+    if (dirty && current && (isApproved(current) || current.source))
+      state.update(current.id, current.value);
+  }, []);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -96,6 +116,24 @@ export default function Workspace() {
     mode === "sample"
       ? sampleAdapter.capabilities
       : getPaperworkAgent().capabilities;
+  useEffect(() => {
+    const query = matchMedia("(max-width: 850px)");
+    const update = () => setNarrow(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (pendingFocus.current) {
+      const selector =
+        pendingFocus.current === "Document"
+          ? "#workspace-document"
+          : ".review-detail h2";
+      document
+        .querySelector<HTMLElement>(selector)
+        ?.focus({ preventScroll: true });
+      pendingFocus.current = null;
+    }
+  }, [tab, selected, source]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -276,12 +314,16 @@ export default function Workspace() {
     } else action();
   }
   function selectField(id: string) {
+    if (unsaved)
+      setNotice("The unsaved edit was discarded when you changed fields.");
+    pendingFocus.current = "Review";
     session.select(id);
     setQuestionView(false);
     setTab("Review");
     setQueueOpen(false);
   }
   function reveal(s: SourceSpan) {
+    pendingFocus.current = "Document";
     session.showSource(s);
     setTab("Document");
   }
@@ -347,6 +389,10 @@ export default function Workspace() {
     }
   }
   function startExport() {
+    if (unsaved) {
+      setNotice("Save your changes before preparing a draft.");
+      return;
+    }
     if (fields.some((f) => !isApproved(f))) {
       setDialog("incomplete");
     } else void prepareExport();
@@ -512,6 +558,10 @@ export default function Workspace() {
   const unsafe = target && ["signed", "xfa", "image"].includes(target.support);
   const documentPane = (
     <section
+      id="workspace-document"
+      role={narrow ? "tabpanel" : "region"}
+      aria-labelledby={narrow ? "workspace-tab-document" : undefined}
+      tabIndex={-1}
       className={`document-pane mobile-${tab === "Document" ? "visible" : "hidden"}`}
       aria-label="Document viewer"
     >
@@ -605,6 +655,11 @@ export default function Workspace() {
   );
   const reviewPane = (
     <section
+      id="workspace-review"
+      role={narrow ? "tabpanel" : "region"}
+      aria-labelledby={
+        narrow ? `workspace-tab-${tab.toLowerCase()}` : undefined
+      }
       ref={main}
       className={`review-pane mobile-${tab !== "Document" ? "visible" : "hidden"}`}
       aria-label="Answer review"
@@ -760,7 +815,7 @@ export default function Workspace() {
           {field && (
             <div className="review-detail" key={field.id}>
               <div className="detail-heading">
-                <h2>{field.label}</h2>
+                <h2 tabIndex={-1}>{field.label}</h2>
                 <Status reviewed={isApproved(field)}>
                   {isApproved(field)
                     ? "Reviewed by you"
@@ -818,6 +873,10 @@ export default function Workspace() {
               <FieldEditor
                 key={field.id}
                 field={field}
+                onDraftChange={draftChanged}
+                onRequired={(required) =>
+                  session.markRequired(field.id, required)
+                }
                 onSave={(value) => {
                   session.update(field.id, value);
                   setNotice("Answer saved. Review it before exporting.");
@@ -874,6 +933,7 @@ export default function Workspace() {
                 <button
                   className={`button ${isApproved(field) ? "approved-button" : "primary"}`}
                   disabled={
+                    unsaved ||
                     !field.value ||
                     field.state === "conflict" ||
                     field.kind === "unsupported" ||
@@ -1062,20 +1122,46 @@ export default function Workspace() {
               role="tablist"
               aria-label="Workspace view"
             >
-              {(["Document", "Review", "Questions"] as Tab[]).map((t) => (
-                <button
-                  key={t}
-                  role="tab"
-                  aria-selected={tab === t}
-                  onClick={() => {
-                    setTab(t);
-                    setQuestionView(t === "Questions");
-                    if (t === "Questions") setQueueOpen(true);
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
+              {(["Document", "Review", "Questions"] as Tab[]).map(
+                (t, index) => (
+                  <button
+                    key={t}
+                    ref={(node) => {
+                      viewTabs.current[index] = node;
+                    }}
+                    id={`workspace-tab-${t.toLowerCase()}`}
+                    aria-controls={
+                      t === "Document"
+                        ? "workspace-document"
+                        : "workspace-review"
+                    }
+                    tabIndex={tab === t ? 0 : -1}
+                    onKeyDown={(event) => {
+                      const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+                      if (!keys.includes(event.key)) return;
+                      event.preventDefault();
+                      const next =
+                        event.key === "Home"
+                          ? 0
+                          : event.key === "End"
+                            ? 2
+                            : (index + (event.key === "ArrowRight" ? 1 : 2)) %
+                              3;
+                      viewTabs.current[next]?.click();
+                      viewTabs.current[next]?.focus();
+                    }}
+                    role="tab"
+                    aria-selected={tab === t}
+                    onClick={() => {
+                      setTab(t);
+                      setQuestionView(t === "Questions");
+                      setQueueOpen(t === "Questions");
+                    }}
+                  >
+                    {t}
+                  </button>
+                ),
+              )}
             </div>
             <div className="desktop-panes">
               <Group orientation="horizontal" id="workspace-panes">
@@ -1372,14 +1458,18 @@ const answerSchema = z.object({
 function FieldEditor({
   field,
   onSave,
+  onDraftChange,
+  onRequired,
 }: {
   field: SemanticField;
   onSave: (value: string) => void;
+  onDraftChange: (dirty: boolean) => void;
+  onRequired: (required: boolean) => void;
 }) {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
     watch,
   } = useForm<{ value: string }>({
@@ -1388,11 +1478,24 @@ function FieldEditor({
   });
   useEffect(() => reset({ value: field.value }), [field.value, reset]);
   const value = watch("value");
+  useEffect(() => {
+    onDraftChange(isDirty && value !== field.value);
+  }, [value, field.value, isDirty, onDraftChange]);
   return (
     <form
       className="answer-form"
       onSubmit={handleSubmit((data) => onSave(data.value))}
     >
+      {field.id.startsWith("manual:") && (
+        <label className="manual-required">
+          <input
+            type="checkbox"
+            checked={field.required}
+            onChange={(e) => onRequired(e.target.checked)}
+          />{" "}
+          This answer is required
+        </label>
+      )}
       <label htmlFor="answer-value">
         Answer{" "}
         {field.required && <span className="required-label">Required</span>}
@@ -1428,6 +1531,11 @@ function FieldEditor({
       {errors.value && (
         <p id="answer-error" role="alert">
           {errors.value.message}
+        </p>
+      )}
+      {isDirty && value !== field.value && (
+        <p className="unsaved-answer" role="status">
+          Unsaved changes. Save this answer before approving or exporting.
         </p>
       )}
       <div className="answer-form-footer">
