@@ -9,3 +9,5 @@ Budget: no paid services; bounded visual review of key screens then one complete
 Maker: root implementation agent. Checker: deterministic commands plus independent frontend critic. Screens and receipts are evidence, not award or compliance certification.
 
 Theme revision: light workspace by default, explicit session-only dark toggle, preserve interview state/document rendering, verify both palettes and commit/push a descriptive branch to Diannn3/RNB. Allowed remote action: push this feature branch; no merge or deployment.
+
+Hero integration: merge origin/audit/papelless-landing-page (225887d) into a new integration branch, retain working SignatureSequence and light/default theme, combine scoped styles, adapt legacy narrative tests, build and verify landing/workspace regressions. No main merge/deployment.

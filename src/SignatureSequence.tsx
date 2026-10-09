@@ -14,7 +14,7 @@ export default function SignatureSequence() {
   const [active, setActive] = useState(0);
   useEffect(() => {
     const q = matchMedia(
-      "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
+      "(min-width: 1201px) and (prefers-reduced-motion: no-preference)",
     );
     const update = () => {
       setCinematic(q.matches);
