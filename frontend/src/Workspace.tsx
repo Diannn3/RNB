@@ -314,6 +314,7 @@ export default function SessionLayout() {
                 <div ref={conversationEnd} />
               </div>
               <div className="api-chat-footer">
+                {pending && transcript.at(-1)?.explanation && <p aria-label="Current question">{pending.assistant_message}</p>}
                 <div className="api-suggestions"><button disabled={!!busy || !pending?.field || needsResume} onClick={() => void run("Explaining this field…", () => sendChat("Explain this field", true))}>Explain this field</button><button disabled={!!busy || !target} onClick={() => void run("Explaining the form…", () => sendChat("Explain this form", true))}>Explain this form</button><button disabled={!!busy || documents.length < 2} onClick={() => void run("Comparing document evidence…", () => sendChat("Compare my documents", true))}>Compare my documents</button></div>
                 <form className="api-composer" onSubmit={e => { e.preventDefault(); void run("Responding…", () => sendChat()); }}>
                   <label className="sr-only" htmlFor="form-answer">Message PapelLess</label><textarea id="form-answer" rows={2} placeholder={pending ? "Your answer, or ask me to explain…" : "Ask about your form…"} value={answer} onChange={e => setAnswer(e.target.value)} maxLength={4000} disabled={!!busy} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
