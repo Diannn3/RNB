@@ -7,6 +7,12 @@ it("keeps help requests out of the answer path", () => {
     expect(isFieldHelp(text)).toBe(true);
   }
 });
+it("routes contracted questions without consuming the pending answer", () => {
+  for (const text of ["whats the pantawid pamilyang pilipino program?", "what's the Pantawid program?", "What’s the Pantawid program?"]) {
+    expect(chatIntent(text)).toBe("explain");
+    expect(isFieldHelp(text)).toBe(false);
+  }
+});
 it("preserves named service/form requests and ordinary field values", () => {
   for (const text of ["Explain SSS", "Could you explain SSS?", "Can you explain Position?", "Explain this form", "What is PMRF?"]) {
     expect(chatIntent(text)).toBe("explain");
