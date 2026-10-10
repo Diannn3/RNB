@@ -26,3 +26,12 @@ import { Peli } from "./Peli";
 - Placement is limited to the welcome screen; workflow behavior is unchanged.
 
 For placement outside React, use `/mascot/peli.png` (or the configured Vite base).
+
+## Conversation companion
+
+`PeliFollower` places the transparent pose above the composer's right edge.
+GSAP exclusively owns its wrapper: cursor following is bounded to 10px horizontally,
+7px vertically and 4 degrees of tilt. Touch and reduced-motion modes are static.
+Listeners and tweens are cleaned up on unmount; hidden tabs pause movement.
+The decorative image does not intercept clicks or add keyboard stops.
+The companion becomes smaller on narrow screens and hides in short mobile layouts.

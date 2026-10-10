@@ -69,6 +69,12 @@
 .api-chat-empty h1 { font-size: 28px; margin-bottom: 16px; }
 .api-chat-empty p { color: var(--muted); margin-bottom: 24px; }
 .api-chat-footer { flex-shrink: 0; padding: 12px 24px 20px; }
+.api-composer-tools { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.api-composer-tools .api-suggestions { flex: 1; min-width: 0; margin-bottom: 0; }
+.api-peli-perch { width: 116px; height: 104px; flex-shrink: 0; display: grid; place-items: center; pointer-events: none; }
+.api-peli-follower { width: 104px; transform-origin: 50% 80%; }
+@media (max-width: 850px) { .api-peli-perch { width: 76px; height: 72px; } .api-peli-follower { width: 64px; } }
+@media (max-width: 850px) and (max-height: 600px) { .api-peli-perch { display: none; } }
 .api-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .api-suggestions button { border: 1px solid var(--border); border-radius: 20px; min-height: 36px; padding: 7px 12px; font-size: 12px; color: var(--muted); }
 .api-suggestions button:hover:not(:disabled) { color: var(--ink); background: var(--chat-surface, #e8ebee); }

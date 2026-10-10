@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Moon, Sun, Plus, Download, ArrowUp, SlidersHorizontal, LoaderCircle } from "lucide-react";
 import { Brand, Modal } from "./components";
 import { Peli } from "./Peli";
+import { PeliFollower } from "./PeliFollower";
 import { api, apiBlob, resource, ApiError } from "./api";
 import type { Workspace, ApiDocument, Structure, Slot, Fact, Draft, Message, Comparison, Explanation, Health, RequestStatus } from "./api";
 import "./api-workspace.css";
@@ -65,7 +66,7 @@ export default function SessionLayout() {
   }, []);
   useEffect(() => { document.documentElement.dataset.workspaceTheme = dark ? "dark" : "light"; return () => { delete document.documentElement.dataset.workspaceTheme; }; }, [dark]);
   useEffect(() => { heading.current?.focus(); }, [tab]);
-  useEffect(() => { conversationEnd.current?.scrollIntoView({ block: "nearest" }); }, [transcript, busy]);
+  useEffect(() => { if (transcript.length) conversationEnd.current?.scrollIntoView({ block: "nearest" }); }, [transcript, busy]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (pending || Object.keys(answers).length) event.preventDefault(); };
     window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn);
@@ -317,7 +318,10 @@ export default function SessionLayout() {
               </div>
               <div className="api-chat-footer">
                 {pending && transcript.at(-1)?.explanation && <p aria-label="Current question">{pending.assistant_message}</p>}
-                <div className="api-suggestions"><button disabled={!!busy || !pending?.field || needsResume} onClick={() => void run("Explaining this field…", () => sendChat("Explain this field", true))}>Explain this field</button><button disabled={!!busy || !target} onClick={() => void run("Explaining the form…", () => sendChat("Explain this form", true))}>Explain this form</button><button disabled={!!busy || documents.length < 2} onClick={() => void run("Comparing document evidence…", () => sendChat("Compare my documents", true))}>Compare my documents</button></div>
+                <div className="api-composer-tools">
+                  <div className="api-suggestions"><button disabled={!!busy || !pending?.field || needsResume} onClick={() => void run("Explaining this field…", () => sendChat("Explain this field", true))}>Explain this field</button><button disabled={!!busy || !target} onClick={() => void run("Explaining the form…", () => sendChat("Explain this form", true))}>Explain this form</button><button disabled={!!busy || documents.length < 2} onClick={() => void run("Comparing document evidence…", () => sendChat("Compare my documents", true))}>Compare my documents</button></div>
+                  <PeliFollower />
+                </div>
                 <form className="api-composer" onSubmit={e => { e.preventDefault(); void run("Responding…", () => sendChat()); }}>
                   <label className="sr-only" htmlFor="form-answer">Message PapelLess</label><textarea id="form-answer" rows={2} placeholder={pending ? "Your answer, or ask me to explain…" : "Ask about your form…"} value={answer} onChange={e => setAnswer(e.target.value)} maxLength={4000} disabled={!!busy} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
                   <button className="api-send" aria-label="Send message" disabled={!!busy || !answer.trim()}><ArrowUp size={20} /></button>
