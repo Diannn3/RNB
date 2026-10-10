@@ -15,6 +15,7 @@ import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
 import SignatureSequence from "./SignatureSequence";
 import { Brand, Evidence, PaperPreview } from "./components";
+import { Peli } from "./Peli";
 gsap.registerPlugin(ScrollTrigger, Flip, SplitText, useGSAP);
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null);
@@ -127,6 +128,9 @@ export default function Landing() {
               <PaperPreview />
             </div>
             <div className="hero-context">
+              <div className="hero-peli-peek" aria-hidden="true">
+                <Peli pose="wave" size={190} loading="eager" />
+              </div>
               <div className="hero-record">
                 <span>
                   <FileText size={16} aria-hidden="true" /> Student record.pdf

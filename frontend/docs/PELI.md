@@ -37,3 +37,11 @@ modes are static. This is a layered 2.5D effect, not a 3D model.
 Listeners and tweens are cleaned up on unmount; hidden tabs pause movement.
 The decorative image does not intercept clicks or add keyboard stops.
 The companion becomes smaller on narrow screens and hides in short mobile layouts.
+
+## Hero peek
+
+The user's approved hero placement puts the waving Peli behind the supporting-record
+card, mirrored toward the primary CTA and tilted +22 degrees, with his raised wing
+visible. He peeks only from the small source card, clear of the large form. A clipped window hides the lower body at the
+card edge; card text stays unobscured. Mobile layouts reserve space above the card
+and center the smaller peek. The existing GSAP hero entrance includes this decoration.

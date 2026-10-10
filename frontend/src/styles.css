@@ -2271,12 +2271,18 @@ html[data-workspace-theme="dark"] .modal .button.primary { background: var(--ink
   top: auto;
   transform: none;
   box-shadow: 8px 12px 28px #17191c14, -6px -6px 20px #fff;
+  z-index: 2;
 }
 .landing .hero-context {
   min-width: 0;
   display: grid;
   gap: 20px;
+  position: relative;
+  isolation: isolate;
 }
+.landing .hero-peli-peek { position: absolute; width: 220px; height: 136px; top: -136px; left: 8px; overflow: hidden; pointer-events: none; z-index: 0; }
+.landing .hero-peli-peek img { transform: translateY(-16px) rotate(22deg) scaleX(-1); transform-origin: 50% 65%; }
+.landing .hero-context > .hero-record, .landing .hero-context > .hero-review { z-index: 1; }
 .landing .hero .hero-record,
 .landing .hero .hero-review {
   position: relative;
@@ -2426,7 +2432,9 @@ html[data-workspace-theme="dark"] .modal .button.primary { background: var(--ink
   .landing .hero-context {
     grid-template-columns: 1fr;
     gap: 16px;
+    margin-top: 106px;
   }
+  .landing .hero-peli-peek { width: 210px; height: 128px; top: -128px; left: calc(50% - 105px); }
 }
 @media (max-width: 380px) {
   .landing > .site-header {
