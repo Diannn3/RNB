@@ -23,15 +23,17 @@ import { Peli } from "./Peli";
 - `public/mascot/peli-wave.png` is a transparent imagegen edit of the supplied mascot.
 - The welcome greeting uses Anime.js for one 800ms tilt, with effect cleanup.
 - Reduced motion skips the greeting. Both poses remain visible without animation.
-- Placement is limited to the welcome screen; workflow behavior is unchanged.
+- Welcome placement and the conversation companion do not change workflow behavior.
 
 For placement outside React, use `/mascot/peli.png` (or the configured Vite base).
 
 ## Conversation companion
 
-`PeliFollower` places the transparent pose above the composer's right edge.
-GSAP exclusively owns its wrapper: cursor following is bounded to 10px horizontally,
-7px vertically and 4 degrees of tilt. Touch and reduced-motion modes are static.
+`PeliFollower` places Peli above the composer's right edge using separate transparent
+body and face PNG layers. The body stays fixed; GSAP moves only the eyes/beak/pouch.
+Left/right face orientations crossfade, with up to 20 degrees horizontal turning,
+18 degrees vertical tilt, 6px/7px parallax and 2 degrees roll. Touch and reduced-motion
+modes are static. This is a layered 2.5D effect, not a 3D model.
 Listeners and tweens are cleaned up on unmount; hidden tabs pause movement.
 The decorative image does not intercept clicks or add keyboard stops.
 The companion becomes smaller on narrow screens and hides in short mobile layouts.
