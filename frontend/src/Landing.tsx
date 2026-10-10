@@ -15,7 +15,6 @@ import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
 import SignatureSequence from "./SignatureSequence";
 import { Brand, Evidence, PaperPreview } from "./components";
-import { Peli } from "./Peli";
 gsap.registerPlugin(ScrollTrigger, Flip, SplitText, useGSAP);
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null);
@@ -129,7 +128,10 @@ export default function Landing() {
             </div>
             <div className="hero-context">
               <div className="hero-peli-peek" aria-hidden="true">
-                <Peli pose="wave" size={190} loading="eager" />
+                <div className="hero-peli-pose">
+                  <img className="hero-peli-body" src={`${import.meta.env.BASE_URL}mascot/peli-body.png`} width={1254} height={1254} alt="" draggable={false} />
+                  <img className="hero-peli-face" src={`${import.meta.env.BASE_URL}mascot/peli-face.png`} width={1254} height={1254} alt="" draggable={false} />
+                </div>
               </div>
               <div className="hero-record">
                 <span>

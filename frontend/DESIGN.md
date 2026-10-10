@@ -81,7 +81,7 @@ components:
 
 **Creative North Star: "Paper light hero and header"**
 
-This approved update records the implemented landing hero and header only. Paper surfaces, ink typography, shallow paired shadows, and bounded glass panels make the fictional form, source, and pending review readable in the first viewport. The supplied black PNG wordmark keeps its custom letterforms; the hero includes the user-approved diagonal Peli peek above the supporting-record card.
+This approved update records the implemented landing hero and header only. Paper surfaces, ink typography, shallow paired shadows, and bounded glass panels make the fictional form, source, and pending review readable in the first viewport. The supplied black PNG wordmark keeps its custom letterforms; the hero includes the user-approved upright Peli peek with the opposite wing raised and feet hidden above the supporting-record card.
 
 The following incumbent contract remains in force for the lower showcase and document workspace. The new hero materials do not redefine their component systems.
 

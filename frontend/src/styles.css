@@ -2281,7 +2281,9 @@ html[data-workspace-theme="dark"] .modal .button.primary { background: var(--ink
   isolation: isolate;
 }
 .landing .hero-peli-peek { position: absolute; width: 220px; height: 136px; top: -136px; left: 8px; overflow: hidden; pointer-events: none; z-index: 0; }
-.landing .hero-peli-peek img { transform: translateY(-16px) rotate(22deg) scaleX(-1); transform-origin: 50% 65%; }
+.landing .hero-peli-pose { width: 190px; max-width: 100%; position: relative; transform: translateY(16px); }
+.landing .hero-peli-body { display: block; width: 100%; height: auto; }
+.landing .hero-peli-face { position: absolute; width: 84%; height: auto; left: 12.5%; top: 7.2%; transform: scaleX(-1); }
 .landing .hero-context > .hero-record, .landing .hero-context > .hero-review { z-index: 1; }
 .landing .hero .hero-record,
 .landing .hero .hero-review {

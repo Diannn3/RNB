@@ -41,7 +41,9 @@ The companion becomes smaller on narrow screens and hides in short mobile layout
 ## Hero peek
 
 The user's approved hero placement puts the waving Peli behind the supporting-record
-card, mirrored toward the primary CTA and tilted +22 degrees, with his raised wing
-visible. He peeks only from the small source card, clear of the large form. A clipped window hides the lower body at the
+card, upright and facing the primary CTA, with his opposite raised wing visible.
+Separate body/face layers preserve his direction while switching the wave.
+He peeks only from the small source card, clear of the large form. The pose is lowered
+16px; a clipped window hides the feet and lower body at the
 card edge; card text stays unobscured. Mobile layouts reserve space above the card
 and center the smaller peek. The existing GSAP hero entrance includes this decoration.
