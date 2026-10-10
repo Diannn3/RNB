@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Moon, Sun, Plus, Download, ArrowUp, SlidersHorizontal, LoaderCircle } from "lucide-react";
 import { Brand, Modal } from "./components";
+import { Peli } from "./Peli";
 import { api, apiBlob, resource, ApiError } from "./api";
 import type { Workspace, ApiDocument, Structure, Slot, Fact, Draft, Message, Comparison, Explanation, Health, RequestStatus } from "./api";
 import "./api-workspace.css";
@@ -259,8 +260,9 @@ export default function SessionLayout() {
       {error && <p role="alert" className="api-error">{error} Your input is retained. For a failed conversation turn, use Resume form to retrieve the current question before answering again.</p>}
     </div>}
     {!workspace ? <main id="api-work" className="api-start">
-      {/* Asset pending: add the supplied pely.webp to public/ and replace this reserved slot with its image. */}
-      <div className="api-mascot-slot" data-pending-asset="pely.webp" aria-hidden="true" />
+      <div className="api-mascot-slot">
+        <Peli pose="wave" greet size={160} loading="eager" />
+      </div>
       <h1>Start with a form.</h1><p>Upload a synthetic PDF, answer one question at a time, then review a separate draft.</p>
       <button className="button primary" disabled={!!busy} onClick={() => void run("Creating workspace…", createWorkspace)}>Create workspace</button>
       <form onSubmit={e => { e.preventDefault(); void run("Reopening workspace…", resume); }}>

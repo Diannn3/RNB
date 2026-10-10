@@ -149,9 +149,9 @@ html[data-workspace-theme="dark"] .api-header .brand { background: #fafaf8; bord
 @keyframes api-spin { to { transform: rotate(360deg); } }
 @media (max-width: 850px) { .api-header .api-new-label { display: none; } }
 .api-start { flex: 1; min-height: 0; width: 100%; max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; }
-.api-mascot-slot { width: 112px; height: 112px; flex-shrink: 0; margin-bottom: 24px; }
+.api-mascot-slot { width: 160px; height: 160px; flex-shrink: 0; margin-bottom: 16px; }
 .api-start > p { max-width: 46ch; margin: 12px 0 24px; color: var(--muted); }
 .api-start form { width: 100%; max-width: 420px; margin-top: 32px; }
 .api-start form label { display: block; margin-bottom: 10px; }
 .api-start select { width: 100%; font-size: 14px; }
-@media (max-height: 680px) { .api-start { justify-content: flex-start; } .api-mascot-slot { height: 64px; margin-bottom: 16px; } }
+@media (max-height: 680px) { .api-start { justify-content: flex-start; } .api-mascot-slot { width: 112px; height: 112px; margin-bottom: 12px; } }
