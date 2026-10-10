@@ -17,7 +17,7 @@ No tests were run for the integration. Subsequent authorized startup verified th
 - Prepare a draft from direct slot edits or the conversation. Partial drafts are allowed; missing and unresolved fields remain blank. Inspect the returned PNG preview, missing-field list, and optional full multipage PDF view, then explicitly confirm human review before the final PDF download.
 - New workspace and document/value changes invalidate frontend download confirmation. Confirmation is never supplied by the model.
 
-There is no offline, deterministic sample, manual fallback, project-file restoration, local PDF writer or Word export. Unavailable inference produces an explicit backend error; there is no remote fallback. Upload, extracted structure, existing artifact download and corpus explanations do not require inference.
+There is no offline, deterministic sample, manual fallback, project-file restoration, local PDF writer or Word export. Unavailable inference produces an explicit backend error; there is no remote fallback. Upload, extracted structure and existing artifact download do not require inference. Explanations require the local model to search the bundled corpus and synthesize retrieved evidence in English; no embeddings, web or shell access is available.
 
 ## Persistence and safety
 

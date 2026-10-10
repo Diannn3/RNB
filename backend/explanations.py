@@ -1,14 +1,43 @@
-"""Sourced English lookup in the bundled Philippine government service corpus."""
+"""Local search-and-simplify agent for the bundled government service corpus."""
 
-from difflib import SequenceMatcher
 import json
 from pathlib import Path
 import re
+from typing import Literal
 from .field_guidance import explain_field, is_field_help, matches_field_query
 
+from pydantic import Field
+
+from . import inference
 
 LABEL = "Demo — not official government advice"
 SKILL = Path(__file__).resolve().parent.parent / "skills" / "government-service-explainer"
+
+
+class ServiceRecord(inference.StrictModel):
+    source_id: str
+    term: str
+    aliases: list[str]
+    feed: str
+    url: str
+    definition: str
+    document_markers: list[str] | None = None
+
+
+class Explanation(inference.StrictModel):
+    status: Literal["completed", "needs_input", "abstained"]
+    assistant_message: str = Field(min_length=1, max_length=4000)
+    source_ids: list[str] = Field(max_length=20)
+
+
+def search_corpus(query: str) -> list[dict]:
+    """Literal case-insensitive search restricted to the bundled JSON records."""
+    if not isinstance(query, str) or not query.strip() or len(query) > 200:
+        return []
+    needle = query.strip().casefold()
+    entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
+    return [{"source_id": str(index), **entry} for index, entry in enumerate(entries)
+            if needle in json.dumps(entry, ensure_ascii=False).casefold()]
 
 
 def _normalize(value):
@@ -22,73 +51,78 @@ def _reply(message, status, citations=None):
 
 def explain(query: str, structure: dict | None = None, field: dict | None = None,
             field_requested: bool = False) -> dict:
-    """Look up a service term or identify a selected form from extracted text."""
-    unsupported = ("The local demo corpus does not cover that request. Ask about DSWD AICS, "
-                   "Pantawid data requests, SSS membership or E-1, or PhilHealth membership or PMRF. "
-                   "This demo cannot determine eligibility, approve benefits, or submit applications.")
+    """Route offline field help separately from model-driven service explanations."""
     if not isinstance(query, str) or not query.strip() or len(query) > 300:
-        return _reply(unsupported, "abstained")
-    request = query.strip().lower().rstrip(".?!").strip()
+        return _reply("Ask a short question about a covered government service.", "abstained")
+    form = bool(re.fullmatch(
+        r"(?:please )?(?:(?:can|could) you )?explain (?:this|the) form[.?!]*",
+        query.strip().lower()))
     if is_field_help(query):
         return _reply(*explain_field(structure, field))
-    entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
-    if re.fullmatch(r"(?:please )?(?:(?:can|could) you )?explain (?:this|the) form", request):
-        if structure is None:
-            return _reply("Select an uploaded PDF to explain its form.", "needs_input")
-        text = f" {_normalize(' '.join(page['text'] for page in structure['pages']))} "
-        candidates = [
-            entry for entry in entries if entry.get("document_markers")
-            and all(f" {_normalize(marker)} " in text for marker in entry["document_markers"])
-        ]
-        return _explanation(candidates, unsupported)
-    patterns = (
-        r"(?:please )?(?:(?:can|could) you )?(?:define|explain) (.+)",
-        r"(?:please )?(?:give me|provide) (?:a |the )?definition (?:of|for) (.+)",
-        r"(?:what is|what are|what's) (?:a |an |the )?(.+)",
-        r"what does (.+) mean",
-        r"(?:the )?(?:definition|meaning) (?:of|for) (.+)",
+    if not form and (field_requested or (field and matches_field_query(query, structure, field))):
+        wanted = re.sub(r"^(?:please )?(?:(?:can|could) you )?(?:explain|define|what is|what does) ", "", _normalize(query))
+        wanted = re.sub(r" mean$", "", wanted)
+        entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
+        named_service = any(wanted == _normalize(term) for entry in entries
+                            for term in (entry["term"], *entry["aliases"]))
+        if not named_service:
+            return _reply(*explain_field(structure, field))
+    if form and structure is None:
+        return _reply("Select an uploaded PDF to explain its form.", "needs_input")
+    document_text = " " + _normalize(" ".join(
+        page.get("text", "") for page in structure.get("pages", []))) + " " if form else ""
+    markers = []
+    # Inspect every extracted page, never the filename, without sending a whole PDF to the model.
+    if form:
+        entries = json.loads((SKILL / "references" / "services.json").read_text(encoding="utf-8"))
+        markers = sorted({marker for entry in entries for marker in entry.get("document_markers", [])
+                          if f" {_normalize(marker)} " in document_text})
+    retrieved, searched = {}, False
+
+    def lookup(query):
+        nonlocal searched
+        searched = True
+        records = search_corpus(query)
+        retrieved.update((record["source_id"], record) for record in records)
+        return records
+
+    def validate(result):
+        ids = result.source_ids
+        if (not result.assistant_message.strip() or len(ids) != len(set(ids))
+                or any(source_id not in retrieved for source_id in ids)):
+            raise inference.InferenceError("Explanation cites unavailable evidence")
+        if result.status == "completed":
+            if not searched or not ids:
+                raise inference.InferenceError("Explanation requires searched source evidence")
+            if form and any(not retrieved[source_id].get("document_markers") or not all(
+                    f" {_normalize(marker)} " in document_text
+                    for marker in retrieved[source_id]["document_markers"]) for source_id in ids):
+                raise inference.InferenceError("Form identity lacks complete extracted markers")
+        elif ids:
+            raise inference.InferenceError("Noncompleted explanations cannot cite sources")
+        return result
+
+    instruction = (
+        "BACKEND_PLAN: Explain covered government services in concise English, regardless of "
+        "the conversational language profile. Call lookup_government_service with your chosen "
+        "short literal search queries before any completed answer. It searches only the bundled "
+        "corpus, case-insensitively; refine searches if needed. Simplify the retrieved evidence "
+        "for the user's question in your own words; do not just copy definitions. Use only "
+        "retrieved source_ids, never invent citations or facts. Abstain for unsupported requests "
+        "or insufficient evidence; ask one clarifying question for ambiguity. Do not determine "
+        "eligibility, approve benefits, or submit applications. Noncompleted answers have empty "
+        "source_ids. For a generic form request, identity requires ALL document_markers of the "
+        "cited record in extracted_markers; partial markers are insufficient. Named service "
+        "questions must answer that service, not an unrelated selected document."
     )
-    for pattern in patterns:
-        match = re.fullmatch(pattern, request)
-        if match:
-            request = match[1]
-            break
-    request = request.strip("\"' “”")
-    if not re.fullmatch(r"[a-z0-9\s()/,'\"-]+", request):
-        return _reply(unsupported, "abstained")
-    wanted = _normalize(request)
-    if not wanted:
-        return _reply(unsupported, "abstained")
-    candidates, best = [], 0
-    for entry in entries:
-        score = 0
-        for term in (entry["term"], *entry["aliases"]):
-            normalized = _normalize(term)
-            current = 3 if wanted == normalized else 0
-            if not current and f" {wanted} " in f" {normalized} ":
-                current = 2
-            if (not current and len(wanted) >= 5
-                    and len(wanted.split()) == len(normalized.split())
-                    and SequenceMatcher(None, wanted, normalized).ratio() >= 0.84):
-                current = 1
-            score = max(score, current)
-        if score and score >= best:
-            if score > best:
-                candidates.clear()
-                best = score
-            candidates.append(entry)
-    if not candidates and (field_requested or (field and matches_field_query(query, structure, field))):
-        return _reply(*explain_field(structure, field))
-    return _explanation(candidates, unsupported)
-
-
-def _explanation(candidates, unsupported):
-    if not candidates:
-        return _reply(unsupported, "abstained")
-    if len(candidates) > 1:
-        return _reply(f"Which service do you mean: {', '.join(sorted(entry['term'] for entry in candidates))}?",
-                      "needs_input")
-    entry = candidates[0]
-    citation = {key: entry[key] for key in ("term", "feed", "url")}
-    source = f"Source: {entry['feed']} (topic: {entry['term']}), {entry['url']}."
-    return _reply(f"{entry['term']}: {entry['definition']}\n\n{source}", "completed", [citation])
+    data = {"query": query.strip()}
+    if form:
+        data["extracted_markers"] = markers
+    result = inference.run_tools(
+        [{"role": "system", "content": instruction},
+         {"role": "user", "content": inference._data(data)}],
+        {"lookup_government_service": (lookup, list[ServiceRecord])}, {},
+        final_model=Explanation, validate_final=validate)
+    citations = [{key: retrieved[source_id][key] for key in ("term", "feed", "url")}
+                 for source_id in result.source_ids]
+    return _reply(result.assistant_message, result.status, citations)

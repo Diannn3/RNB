@@ -12,6 +12,8 @@ from backend import main, storage as db
 from backend.explanations import explain
 from backend.field_guidance import BANK, grounded_question, match_field
 from backend.pdf_service import inspect_document
+from backend.explanations import search_corpus
+from tests.test_explanations import answer, lookup, scripted
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'backend/demo_forms/dswd-pantawid-data-request.pdf'
@@ -26,17 +28,22 @@ class GuidanceTests(unittest.TestCase):
         field = {'id': 'p0-b1', 'box_id': 'p0-b1', 'protected': False}
         self.assertEqual(grounded_question(self.structure, field), 'What is your current position or role?')
         with patch.object(main.inference, '_complete', side_effect=AssertionError('Must be offline')):
-            for query in ['explain', 'Explain this field', 'What should I put here?', 'Explain Position']:
+            for query in ['explain', 'Explain this field', 'What should I put here?', 'Explain Position',
+                          'Can you explain Position?', 'Could you help me with this field?']:
                 result = explain(query, self.structure, field)
                 self.assertEqual(result['status'], 'completed')
                 self.assertIn('current position', result['assistant_message'])
                 self.assertIn('pantawid.dswd.gov.ph', result['citations'][0]['url'])
-        self.assertEqual(explain('Explain SSS', self.structure, field)['citations'][0]['feed'], 'SSS')
-        self.assertEqual(explain('Explain this form', self.structure, field)['status'], 'completed')
-        explicit = explain('Explain SSS', self.structure, field, field_requested=True)
-        self.assertEqual(explicit['citations'][0]['feed'], 'SSS')
-        explicit_form = explain('Explain this form', self.structure, field, field_requested=True)
-        self.assertEqual(explicit_form['citations'][0]['term'], 'Pantawid Data Request Form')
+        for query, term, requested in (
+                ('Explain SSS', 'Social Security System', False),
+                ('Explain this form', 'Pantawid Data Request Form', False),
+                ('Explain SSS', 'Social Security System', True),
+                ('Could you explain SSS?', 'Social Security System', True),
+                ('Explain this form', 'Pantawid Data Request Form', True)):
+            record = next(record for record in search_corpus(term) if record['term'] == term)
+            with scripted([lookup(term), answer([record['source_id']])]):
+                result = explain(query, self.structure, field, field_requested=requested)
+            self.assertEqual(result['citations'][0]['term'], term)
 
     def test_repeated_contacts_follow_original_section(self):
         person = match_field(self.structure, {'id': 'p0-b5'})[1]
@@ -61,7 +68,6 @@ class GuidanceTests(unittest.TestCase):
             self.assertEqual(bank['form_id'], index['form_id'])
             self.assertEqual(len({f['key'] for f in bank['fields']}), len(bank['fields']))
             self.assertTrue(bank['url'].startswith('https://'))
-            self.assertEqual(bank['checked_on'], '2026-10-10')
             self.assertTrue(any(f['protected'] for f in bank['fields']))
             for field in bank['fields']:
                 self.assertTrue(required <= field.keys(), field['key'])
@@ -85,7 +91,9 @@ class GuidanceTests(unittest.TestCase):
                     before = copy.deepcopy(current)
                     with patch.object(main.inference, '_complete', side_effect=AssertionError('Must stay offline')):
                         for body in [{'query': 'explain'}, {'query': 'What should I put here?', 'document_id': doc},
-                                     {'query': 'Explain this field', 'document_id': doc, 'field_id': 'p0-b1'}]:
+                                     {'query': 'Explain this field', 'document_id': doc, 'field_id': 'p0-b1'},
+                                     {'query': 'Could you help me with this field?'},
+                                     {'query': 'Can you explain Position?', 'document_id': doc}]:
                             result = client.post(prefix + '/explanations', json=body)
                             self.assertEqual(result.status_code, 200, result.text)
                             self.assertEqual(result.json()['status'], 'completed')

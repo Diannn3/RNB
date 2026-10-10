@@ -92,7 +92,30 @@ out after 240 seconds; no remote fallback or proxy use.
 
 Conversation and generated field questions use English for `lfm` and natural
 Taglish for `qwen`. Official names, source quotes, user values, JSON keys and
-tool arguments remain unchanged. Deterministic corpus explanations remain English.
+tool arguments remain unchanged. Model-driven corpus explanations remain English
+under both profiles: the local agent chooses scoped literal grep-style searches
+over bundled `services.json`, then simplifies the retrieved definitions. Completed
+answers require search evidence; citations come only from retrieved record IDs.
+There are no embeddings, web, shell, arbitrary-file tools or remote fallback.
+Explanation inference failures return errors, not canned corpus responses.
+
+Explanation-agent smoke (LFM): the real local model searched `AICS`, refined its
+search, and generated a simplified answer with the AICS official citation.
+The HTTP explanation endpoint identified the uploaded Pantawid PDF despite an
+SSS filename, refined an empty search, and returned a sourced explanation.
+An unsupported quantum-mechanics query searched, found no records, and abstained.
+Final synthesis uses JSON-schema-constrained generation after the tool phase;
+unconstrained LFM prose did not satisfy the citation contract.
+
+Merged current-field guidance remains offline and preserves pending values.
+Post-merge smoke exercised Position field help, named SSS explanation despite
+an explicit Pantawid field selection, and whole-form Pantawid synthesis.
+Review fixes also preserve polite service precedence with an explicit field,
+route polite label/help queries to offline guidance, and omit inferred mapping
+metadata from unknown-field question prompts. Actual LFM smoke asked for the
+printed Reference code rather than the unidentified form's purpose.
+Post-merge verification passed 47 backend tests, three uploaded-form scenarios,
+three frontend tests, and the production frontend build.
 
 Qwen smoke verification: `/health` and `/v1/models` reported the loaded
 `Qwen3.5-4B-Q4_K_M` alias; llama-server reported `n_ctx_slot = 8192`.
@@ -280,12 +303,15 @@ This is caching for live demo purposes; the first upload still needs mapping inf
 
 ```sh
 .venv/bin/python -m unittest tests.test_api tests.test_pdf_service
-.venv/bin/python -m tests.test_explanations
+.venv/bin/python -m unittest tests.test_explanations
+.venv/bin/python -m tests.test_form_explanations
 ```
 
 These exercise actual PDF writing/rendering, persistent artifact lookup, conflict
-blanking, protected values, API errors, and local government-service citations. The API check
-forbids all inference network requests. The manual model journey lives in
+blanking, protected values, API errors, and local government-service citations.
+Explanation checks script inference completions through the real tool loop without
+network access; these are behavioral tests, not actual-model acceptance evidence.
+The API check forbids all inference network requests. The manual model journey lives in
 `scripts/check_backend.py`, outside automatic test discovery; run
 `.venv/bin/python -m scripts.check_backend` only after explicit authorization.
 

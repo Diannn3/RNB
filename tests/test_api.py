@@ -1,4 +1,4 @@
-"""Storage and conflict/export behavior using real PDFs, with inference forbidden."""
+"""Storage and conflict/export behavior using real PDFs, with network inference forbidden."""
 import hashlib
 import io
 from pathlib import Path
@@ -12,8 +12,10 @@ from reportlab.pdfgen.canvas import Canvas
 from sqlmodel import create_engine
 
 from backend import inference, pdf_service as pdf, storage as db
+from backend.explanations import search_corpus
 from backend.main import app, state
 from tests.test_pdf_service import field_for
+from tests.test_explanations import answer, lookup, scripted
 
 
 class ApiBehavior(unittest.TestCase):
@@ -241,10 +243,17 @@ class ApiBehavior(unittest.TestCase):
                     request_id = invalid.json()['detail']['request_id']
                     self.assertEqual(client.get(f'/api/v1/requests/{request_id}').json()['status'], 'failed')
                     self.assertEqual(client.post(prefix + '/documents', files={'file': ('bad.pdf', b'bad')}).status_code, 422)
-                    covered = client.post(prefix + '/explanations', json={'query': 'DSWD AICS'}).json()
+                    record = search_corpus('DSWD AICS')[0]
+                    with scripted([lookup('DSWD AICS'), answer([record['source_id']])]):
+                        covered = client.post(prefix + '/explanations', json={'query': 'DSWD AICS'}).json()
                     self.assertEqual(covered['status'], 'completed')
                     self.assertEqual(covered['citations'][0]['feed'], 'DSWD')
-                    self.assertEqual(client.post(prefix + '/explanations', json={'query': 'quantum healing'}).json()['status'], 'abstained')
+                    self.assertEqual(set(covered), {'request_id', 'assistant_message', 'status', 'citations'})
+                    self.assertEqual(client.get(f'/api/v1/requests/{covered["request_id"]}').json()['status'], 'completed')
+                    with scripted([lookup('quantum healing'), answer(status='abstained')]):
+                        unsupported = client.post(prefix + '/explanations', json={'query': 'quantum healing'}).json()
+                    self.assertEqual(unsupported['status'], 'abstained')
+                    self.assertEqual(unsupported['citations'], [])
                 with TestClient(app) as restarted:
                     self.assertEqual(restarted.get(f'/api/v1/artifacts/{document}').content, source)
                     self.assertEqual(restarted.post(result['export_url']).content, exported.content)

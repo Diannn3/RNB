@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 
 BANK = Path(__file__).resolve().parents[1] / 'skills/government-service-explainer/references/fields'
-HELP = re.compile(r"(?:please\s+)?(?:(?:can|could) you\s+)?(?:explain(?: (?:this|the)(?: field| question))?|help(?: me)?|what does (?:this|that|this field) mean|what (?:should|do) i (?:put|enter|write)(?: (?:here|in this field|for this field))?)[.!?]*", re.I)
+HELP = re.compile(r"(?:please\s+)?(?:(?:can|could) you\s+)?(?:explain(?: (?:this|the)(?: field| question))?|help(?: me)?(?: (?:with|understand) (?:this|the) (?:field|question))?|what does (?:this|that|this field) mean|what (?:should|do) i (?:put|enter|write)(?: (?:here|in this field|for this field))?)[.!?]*", re.I)
 
 
 def normalize(text):
@@ -93,7 +93,7 @@ def matches_field_query(query, structure, field):
     _, entry = match_field(structure, field)
     if not entry:
         return False
-    wanted = re.sub(r'^(?:please )?(?:explain|define|what is|what does) ', '', normalize(query))
+    wanted = re.sub(r'^(?:please )?(?:(?:can|could) you )?(?:explain|define|what is|what does) ', '', normalize(query))
     wanted = re.sub(r' mean$', '', wanted)
     return wanted in [normalize(value) for value in [entry['label'], *entry['aliases']]]
 

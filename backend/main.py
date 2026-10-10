@@ -332,7 +332,8 @@ def messages(workspace_id: str, body: MessageInput, session: SessionDep):
                 if question is None:
                     form = identify_form(structure)
                     original = source_slot(structure, field) or {}
-                    question = inference.ask_question({**field,
+                    question = inference.ask_question({
+                        'protected': field.get('protected', False),
                         'form_title': form['title'] if form else 'Unidentified uploaded form',
                         'source_label': original.get('field_name') or original.get('text', ''),
                         'source_context': original.get('context', '')}, skill('government-form-assistant'))
